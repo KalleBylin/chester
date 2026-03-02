@@ -21,6 +21,24 @@ make build
 ./bin/chester --help
 ```
 
+## Shell Completions
+
+`chester` ships Cobra-generated completions for `bash`, `zsh`, `fish`, and `powershell`.
+
+```bash
+chester completion bash > /etc/bash_completion.d/chester
+chester completion zsh > "${fpath[1]}/_chester"
+chester completion fish > ~/.config/fish/completions/chester.fish
+```
+
+For a one-off shell session, you can also source them directly:
+
+```bash
+source <(chester completion bash)
+source <(chester completion zsh)
+chester completion fish | source
+```
+
 ## Agent Onboarding
 
 Agents are the primary users. Run `chester onboard` and paste the emitted snippet into `AGENTS.md` (or `.github/copilot-instructions.md`) so coding agents know the anti-magic rule and the four core primitives.
@@ -37,6 +55,10 @@ Agents are the primary users. Run `chester onboard` and paste the emitted snippe
 ### `chester onboard`
 
 Prints a minimal snippet for `AGENTS.md` that teaches agents when and how to use `chester` without bloating the repository's agent instructions.
+
+### `chester completion <bash|zsh|fish|powershell>`
+
+Generates shell completion scripts using Cobra's built-in completion support.
 
 ### `chester read-thread <id>`
 

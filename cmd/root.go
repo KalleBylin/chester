@@ -38,6 +38,7 @@ func NewRootCmdWithOptions(opts *Options) *cobra.Command {
 	root.AddCommand(newUnearthLinesCmd(opts))
 	root.AddCommand(newUnearthRangeCmd(opts))
 	root.AddCommand(newOnboardCmd())
+	root.InitDefaultCompletionCmd()
 
 	return root
 }

@@ -7,6 +7,7 @@ import (
 
 	"github.com/KalleBylin/chester/internal/execx"
 	"github.com/KalleBylin/chester/internal/testutil"
+	"github.com/spf13/cobra"
 )
 
 func TestReadThreadCommandEndToEnd(t *testing.T) {
@@ -303,6 +304,22 @@ func TestOnboardCommandOutputsAgentSnippet(t *testing.T) {
 	}
 }
 
+func TestCompletionCommandIsAvailable(t *testing.T) {
+	t.Parallel()
+
+	root := NewRootCmdWithOptions(&Options{Runner: execx.NewMockRunner()})
+	completion := findChild(root, "completion")
+	if completion == nil {
+		t.Fatal("completion command missing")
+	}
+
+	for _, name := range []string{"bash", "zsh", "fish", "powershell"} {
+		if findChild(completion, name) == nil {
+			t.Fatalf("completion subcommand %q missing", name)
+		}
+	}
+}
+
 func executeForTest(t *testing.T, runner execx.Runner, args ...string) (string, string, error) {
 	t.Helper()
 
@@ -312,10 +329,26 @@ func executeForTest(t *testing.T, runner execx.Runner, args ...string) (string, 
 
 	var stdout bytes.Buffer
 	var stderr bytes.Buffer
-	command.SetOut(&stdout)
-	command.SetErr(&stderr)
+	bindOutputs(command, &stdout, &stderr)
 	command.SetArgs(args)
 
 	err := command.Execute()
 	return stdout.String(), stderr.String(), err
+}
+
+func bindOutputs(command *cobra.Command, stdout *bytes.Buffer, stderr *bytes.Buffer) {
+	command.SetOut(stdout)
+	command.SetErr(stderr)
+	for _, child := range command.Commands() {
+		bindOutputs(child, stdout, stderr)
+	}
+}
+
+func findChild(command *cobra.Command, name string) *cobra.Command {
+	for _, child := range command.Commands() {
+		if child.Name() == name {
+			return child
+		}
+	}
+	return nil
 }
