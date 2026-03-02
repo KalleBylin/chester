@@ -1,0 +1,29 @@
+[
+  {
+    "path": "db/queries.go",
+    "body": "Bypassing ORM due to Postgres 13 bug.",
+    "created_at": "2026-01-10T09:00:00Z",
+    "user": {
+      "login": "maintainer",
+      "type": "User"
+    }
+  },
+  {
+    "path": "db/queries.go",
+    "body": "Keep until PG13 is no longer supported.",
+    "created_at": "2026-01-10T10:00:00Z",
+    "user": {
+      "login": "reviewer",
+      "type": "User"
+    }
+  },
+  {
+    "path": "internal/auth/session.go",
+    "body": "Wrong file for this discussion.",
+    "created_at": "2026-01-10T11:00:00Z",
+    "user": {
+      "login": "reviewer",
+      "type": "User"
+    }
+  }
+]

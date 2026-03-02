@@ -1,0 +1,46 @@
+{
+  "number": 123,
+  "title": "Harden session invalidation",
+  "body": "Force immediate revocation after password reset.",
+  "url": "https://github.com/acme/chester/pull/123",
+  "state": "MERGED",
+  "isDraft": false,
+  "comments": [
+    {
+      "author": {
+        "login": "alice",
+        "isBot": false
+      },
+      "body": "Session cookies survive password reset on main.",
+      "createdAt": "2026-03-01T10:00:00Z"
+    },
+    {
+      "author": {
+        "login": "carol",
+        "isBot": false
+      },
+      "body": "Confirmed this also affects API tokens.",
+      "createdAt": "2026-03-01T12:00:00Z"
+    }
+  ],
+  "reviews": [
+    {
+      "author": {
+        "login": "bob",
+        "isBot": false
+      },
+      "body": "Keep this branch-specific invalidation until legacy clients are removed.",
+      "state": "APPROVED",
+      "submittedAt": "2026-03-01T11:00:00Z"
+    },
+    {
+      "author": {
+        "login": "dana",
+        "isBot": false
+      },
+      "body": "",
+      "state": "COMMENTED",
+      "submittedAt": "2026-03-01T11:30:00Z"
+    }
+  ]
+}

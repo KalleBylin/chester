@@ -1,0 +1,7 @@
+{
+  "number": 77,
+  "title": "Bypass ORM for hot path query",
+  "body": "Use raw SQL for this lookup because the ORM path regressed under PostgreSQL 13.",
+  "url": "https://github.com/acme/chester/pull/77",
+  "mergedAt": "2026-01-10T18:00:00Z"
+}

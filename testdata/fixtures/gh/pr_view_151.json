@@ -1,0 +1,7 @@
+{
+  "number": 151,
+  "title": "Invalidate sessions on password reset",
+  "body": "Force immediate credential revocation across web and API flows.",
+  "url": "https://github.com/acme/chester/pull/151",
+  "mergedAt": "2026-02-28T15:00:00Z"
+}

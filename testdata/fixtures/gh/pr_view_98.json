@@ -1,0 +1,7 @@
+{
+  "number": 98,
+  "title": "Split session store",
+  "body": "Move persistence behind a store interface so auth and admin flows stop sharing transaction logic.",
+  "url": "https://github.com/acme/chester/pull/98",
+  "mergedAt": "2026-02-15T18:00:00Z"
+}
