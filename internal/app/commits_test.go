@@ -116,3 +116,16 @@ func TestDirectCommitWhyPrefersBodyParagraph(t *testing.T) {
 		t.Fatalf("DirectCommitWhy() = %q, want %q", got, want)
 	}
 }
+
+func TestPRWhyFallsBackToTitleWhenBodyIsEmpty(t *testing.T) {
+	t.Parallel()
+
+	got := PRWhy(PRDetails{
+		Title: "hotfix: ci will build tools & fix local_builder",
+		Body:  "",
+	})
+	want := "hotfix: ci will build tools & fix local_builder"
+	if got != want {
+		t.Fatalf("PRWhy() = %q, want %q", got, want)
+	}
+}

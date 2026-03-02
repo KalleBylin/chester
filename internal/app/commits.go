@@ -92,6 +92,13 @@ func LoadPRDetails(ctx context.Context, runner execx.Runner, repo string, number
 	return details, nil
 }
 
+func PRWhy(details PRDetails) string {
+	if why := FirstParagraph(details.Body); why != "" {
+		return why
+	}
+	return details.Title
+}
+
 func DirectCommitWhy(raw string) string {
 	raw = strings.TrimSpace(raw)
 	if raw == "" {

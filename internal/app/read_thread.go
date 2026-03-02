@@ -12,46 +12,44 @@ import (
 )
 
 var (
-	readThreadPRFields    = []string{"number", "title", "body", "url", "state", "isDraft", "comments", "reviews"}
-	readThreadIssueFields = []string{"number", "title", "body", "url", "state", "comments"}
+	readThreadPRFields    = []string{"number", "title", "body", "url", "state", "isDraft"}
+	readThreadIssueFields = []string{"number", "title", "body", "url", "state"}
 )
 
 type readThreadPRPayload struct {
-	Number   int                 `json:"number"`
-	Title    string              `json:"title"`
-	Body     string              `json:"body"`
-	URL      string              `json:"url"`
-	State    string              `json:"state"`
-	IsDraft  bool                `json:"isDraft"`
-	Comments []readThreadComment `json:"comments"`
-	Reviews  []readThreadReview  `json:"reviews"`
+	Number  int    `json:"number"`
+	Title   string `json:"title"`
+	Body    string `json:"body"`
+	URL     string `json:"url"`
+	State   string `json:"state"`
+	IsDraft bool   `json:"isDraft"`
 }
 
 type readThreadIssuePayload struct {
-	Number   int                 `json:"number"`
-	Title    string              `json:"title"`
-	Body     string              `json:"body"`
-	URL      string              `json:"url"`
-	State    string              `json:"state"`
-	Comments []readThreadComment `json:"comments"`
+	Number int    `json:"number"`
+	Title  string `json:"title"`
+	Body   string `json:"body"`
+	URL    string `json:"url"`
+	State  string `json:"state"`
 }
 
-type readThreadComment struct {
-	Author    readThreadAuthor `json:"author"`
-	Body      string           `json:"body"`
-	CreatedAt string           `json:"createdAt"`
+type readThreadIssueComment struct {
+	User struct {
+		Login string `json:"login"`
+		Type  string `json:"type"`
+	} `json:"user"`
+	Body      string `json:"body"`
+	CreatedAt string `json:"created_at"`
 }
 
 type readThreadReview struct {
-	Author      readThreadAuthor `json:"author"`
-	Body        string           `json:"body"`
-	State       string           `json:"state"`
-	SubmittedAt string           `json:"submittedAt"`
-}
-
-type readThreadAuthor struct {
-	Login string `json:"login"`
-	IsBot bool   `json:"isBot"`
+	User struct {
+		Login string `json:"login"`
+		Type  string `json:"type"`
+	} `json:"user"`
+	Body        string `json:"body"`
+	State       string `json:"state"`
+	SubmittedAt string `json:"submitted_at"`
 }
 
 type readThreadEvent struct {
@@ -64,7 +62,7 @@ type readThreadEvent struct {
 func ReadThread(ctx context.Context, runner execx.Runner, repo string, id string) (string, error) {
 	body, err := GHPRView(ctx, runner, repo, id, readThreadPRFields)
 	if err == nil {
-		return renderPRThread(body)
+		return renderPRThread(ctx, runner, repo, body)
 	}
 	if !isPRLookupMiss(err) {
 		return "", err
@@ -74,23 +72,32 @@ func ReadThread(ctx context.Context, runner execx.Runner, repo string, id string
 	if err != nil {
 		return "", err
 	}
-	return renderIssueThread(body)
+	return renderIssueThread(ctx, runner, repo, body)
 }
 
-func renderPRThread(body []byte) (string, error) {
+func renderPRThread(ctx context.Context, runner execx.Runner, repo string, body []byte) (string, error) {
 	var payload readThreadPRPayload
 	if err := json.Unmarshal(body, &payload); err != nil {
 		return "", err
 	}
 
-	events := make([]readThreadEvent, 0, len(payload.Comments)+len(payload.Reviews))
-	for _, comment := range payload.Comments {
+	comments, err := loadIssueComments(ctx, runner, repo, payload.Number)
+	if err != nil {
+		return "", err
+	}
+	reviews, err := loadPRReviews(ctx, runner, repo, payload.Number)
+	if err != nil {
+		return "", err
+	}
+
+	events := make([]readThreadEvent, 0, len(comments)+len(reviews))
+	for _, comment := range comments {
 		rendered, ok := newCommentEvent(comment)
 		if ok {
 			events = append(events, rendered)
 		}
 	}
-	for _, review := range payload.Reviews {
+	for _, review := range reviews {
 		rendered, ok := newReviewEvent(review)
 		if ok {
 			events = append(events, rendered)
@@ -104,14 +111,19 @@ func renderPRThread(body []byte) (string, error) {
 	return renderThreadDocument(payload.Number, "pr", payload.Title, payload.URL, payload.Body, events), nil
 }
 
-func renderIssueThread(body []byte) (string, error) {
+func renderIssueThread(ctx context.Context, runner execx.Runner, repo string, body []byte) (string, error) {
 	var payload readThreadIssuePayload
 	if err := json.Unmarshal(body, &payload); err != nil {
 		return "", err
 	}
 
-	events := make([]readThreadEvent, 0, len(payload.Comments))
-	for _, comment := range payload.Comments {
+	comments, err := loadIssueComments(ctx, runner, repo, payload.Number)
+	if err != nil {
+		return "", err
+	}
+
+	events := make([]readThreadEvent, 0, len(comments))
+	for _, comment := range comments {
 		rendered, ok := newCommentEvent(comment)
 		if ok {
 			events = append(events, rendered)
@@ -125,8 +137,8 @@ func renderIssueThread(body []byte) (string, error) {
 	return renderThreadDocument(payload.Number, "issue", payload.Title, payload.URL, payload.Body, events), nil
 }
 
-func newCommentEvent(comment readThreadComment) (readThreadEvent, bool) {
-	if comment.Author.IsBot {
+func newCommentEvent(comment readThreadIssueComment) (readThreadEvent, bool) {
+	if comment.User.Type != "User" {
 		return readThreadEvent{}, false
 	}
 
@@ -137,13 +149,13 @@ func newCommentEvent(comment readThreadComment) (readThreadEvent, bool) {
 
 	return readThreadEvent{
 		When:  comment.CreatedAt,
-		Label: "@" + comment.Author.Login,
+		Label: "@" + comment.User.Login,
 		Body:  body,
 	}, true
 }
 
 func newReviewEvent(review readThreadReview) (readThreadEvent, bool) {
-	if review.Author.IsBot {
+	if review.User.Type != "User" {
 		return readThreadEvent{}, false
 	}
 
@@ -154,9 +166,37 @@ func newReviewEvent(review readThreadReview) (readThreadEvent, bool) {
 
 	return readThreadEvent{
 		When:  review.SubmittedAt,
-		Label: "review/" + review.State + " @" + review.Author.Login,
+		Label: "review/" + review.State + " @" + review.User.Login,
 		Body:  body,
 	}, true
+}
+
+func loadIssueComments(ctx context.Context, runner execx.Runner, repo string, number int) ([]readThreadIssueComment, error) {
+	path := fmt.Sprintf("repos/%s/issues/%d/comments?per_page=100", repo, number)
+	body, err := GHAPI(ctx, runner, "--paginate", "-H", "Accept: application/vnd.github+json", path)
+	if err != nil {
+		return nil, err
+	}
+
+	var comments []readThreadIssueComment
+	if err := json.Unmarshal(body, &comments); err != nil {
+		return nil, err
+	}
+	return comments, nil
+}
+
+func loadPRReviews(ctx context.Context, runner execx.Runner, repo string, number int) ([]readThreadReview, error) {
+	path := fmt.Sprintf("repos/%s/pulls/%d/reviews?per_page=100", repo, number)
+	body, err := GHAPI(ctx, runner, "--paginate", "-H", "Accept: application/vnd.github+json", path)
+	if err != nil {
+		return nil, err
+	}
+
+	var reviews []readThreadReview
+	if err := json.Unmarshal(body, &reviews); err != nil {
+		return nil, err
+	}
+	return reviews, nil
 }
 
 func renderThreadDocument(number int, kind string, title string, url string, body string, events []readThreadEvent) string {

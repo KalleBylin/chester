@@ -51,7 +51,7 @@ func UnearthRange(ctx context.Context, runner execx.Runner, repo string, spec st
 			}
 			entries = append(entries, rangeEntry{
 				PR:  &details,
-				Why: FirstParagraph(details.Body),
+				Why: PRWhy(details),
 			})
 			continue
 		}

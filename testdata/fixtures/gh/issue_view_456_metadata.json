@@ -1,0 +1,7 @@
+{
+  "number": 456,
+  "title": "Token refresh fails after logout",
+  "body": "Users can still refresh an API token after logout in some cases.",
+  "url": "https://github.com/acme/chester/issues/456",
+  "state": "OPEN"
+}

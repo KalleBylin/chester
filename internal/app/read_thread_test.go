@@ -17,10 +17,30 @@ func TestReadThreadRendersPRConversation(t *testing.T) {
 			Name: "gh",
 			Args: []string{
 				"pr", "view", "123", "--repo", "acme/chester",
-				"--json", "number,title,body,url,state,isDraft,comments,reviews",
+				"--json", "number,title,body,url,state,isDraft",
 			},
 			Result: execx.Result{
-				Stdout: testutil.ReadFixture(t, "gh", "pr_view_123_with_reviews.json"),
+				Stdout: testutil.ReadFixture(t, "gh", "pr_view_123_metadata.json"),
+			},
+		},
+		execx.Expectation{
+			Name: "gh",
+			Args: []string{
+				"api", "--paginate", "-H", "Accept: application/vnd.github+json",
+				"repos/acme/chester/issues/123/comments?per_page=100",
+			},
+			Result: execx.Result{
+				Stdout: testutil.ReadFixture(t, "gh", "issue_comments_123.json"),
+			},
+		},
+		execx.Expectation{
+			Name: "gh",
+			Args: []string{
+				"api", "--paginate", "-H", "Accept: application/vnd.github+json",
+				"repos/acme/chester/pulls/123/reviews?per_page=100",
+			},
+			Result: execx.Result{
+				Stdout: testutil.ReadFixture(t, "gh", "pull_reviews_123.json"),
 			},
 		},
 	)
@@ -44,7 +64,7 @@ func TestReadThreadFallsBackToIssue(t *testing.T) {
 			Name: "gh",
 			Args: []string{
 				"pr", "view", "456", "--repo", "acme/chester",
-				"--json", "number,title,body,url,state,isDraft,comments,reviews",
+				"--json", "number,title,body,url,state,isDraft",
 			},
 			Err: &execx.RunError{
 				Name:     "gh",
@@ -57,10 +77,20 @@ func TestReadThreadFallsBackToIssue(t *testing.T) {
 			Name: "gh",
 			Args: []string{
 				"issue", "view", "456", "--repo", "acme/chester",
-				"--json", "number,title,body,url,state,comments",
+				"--json", "number,title,body,url,state",
 			},
 			Result: execx.Result{
-				Stdout: testutil.ReadFixture(t, "gh", "issue_view_456.json"),
+				Stdout: testutil.ReadFixture(t, "gh", "issue_view_456_metadata.json"),
+			},
+		},
+		execx.Expectation{
+			Name: "gh",
+			Args: []string{
+				"api", "--paginate", "-H", "Accept: application/vnd.github+json",
+				"repos/acme/chester/issues/456/comments?per_page=100",
+			},
+			Result: execx.Result{
+				Stdout: testutil.ReadFixture(t, "gh", "issue_comments_456.json"),
 			},
 		},
 	)
@@ -84,10 +114,30 @@ func TestReadThreadUsesEmptyBodyPlaceholder(t *testing.T) {
 			Name: "gh",
 			Args: []string{
 				"pr", "view", "999", "--repo", "acme/chester",
-				"--json", "number,title,body,url,state,isDraft,comments,reviews",
+				"--json", "number,title,body,url,state,isDraft",
 			},
 			Result: execx.Result{
-				Stdout: []byte(`{"number":999,"title":"Empty","body":"<!-- hidden -->","url":"https://github.com/acme/chester/pull/999","state":"MERGED","isDraft":false,"comments":[],"reviews":[]}`),
+				Stdout: []byte(`{"number":999,"title":"Empty","body":"<!-- hidden -->","url":"https://github.com/acme/chester/pull/999","state":"MERGED","isDraft":false}`),
+			},
+		},
+		execx.Expectation{
+			Name: "gh",
+			Args: []string{
+				"api", "--paginate", "-H", "Accept: application/vnd.github+json",
+				"repos/acme/chester/issues/999/comments?per_page=100",
+			},
+			Result: execx.Result{
+				Stdout: []byte(`[]`),
+			},
+		},
+		execx.Expectation{
+			Name: "gh",
+			Args: []string{
+				"api", "--paginate", "-H", "Accept: application/vnd.github+json",
+				"repos/acme/chester/pulls/999/reviews?per_page=100",
+			},
+			Result: execx.Result{
+				Stdout: []byte(`[]`),
 			},
 		},
 	)

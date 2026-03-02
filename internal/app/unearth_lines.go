@@ -77,7 +77,7 @@ func UnearthLines(ctx context.Context, runner execx.Runner, repo string, file st
 			block.WriteString(header)
 			fmt.Fprintf(&block, "PR #%d %s\n", details.Number, details.Title)
 			block.WriteString("  why: ")
-			block.WriteString(FirstParagraph(details.Body))
+			block.WriteString(PRWhy(details))
 			block.WriteString("\n")
 			if len(notes) > 0 {
 				block.WriteString("  notes: ")

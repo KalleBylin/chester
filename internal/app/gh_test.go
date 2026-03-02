@@ -77,12 +77,12 @@ func TestGHWrappersBuildExactCommands(t *testing.T) {
 		execx.Expectation{
 			Name: "gh",
 			Args: []string{"pr", "view", "123", "--repo", "acme/chester", "--json", "number,title,body"},
-			Result: execx.Result{Stdout: testutil.ReadFixture(t, "gh", "pr_view_123.json")},
+			Result: execx.Result{Stdout: []byte(`{"number":123,"title":"Example","body":"Body"}`)},
 		},
 		execx.Expectation{
 			Name: "gh",
 			Args: []string{"issue", "view", "456", "--repo", "acme/chester", "--json", "number,title,body"},
-			Result: execx.Result{Stdout: testutil.ReadFixture(t, "gh", "issue_view_456.json")},
+			Result: execx.Result{Stdout: []byte(`{"number":456,"title":"Example","body":"Body"}`)},
 		},
 		execx.Expectation{
 			Name: "gh",

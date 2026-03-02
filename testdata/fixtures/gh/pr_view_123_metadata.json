@@ -1,0 +1,8 @@
+{
+  "number": 123,
+  "title": "Harden session invalidation",
+  "body": "Force immediate revocation after password reset.",
+  "url": "https://github.com/acme/chester/pull/123",
+  "state": "MERGED",
+  "isDraft": false
+}

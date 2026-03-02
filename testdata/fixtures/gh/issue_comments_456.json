@@ -1,0 +1,10 @@
+[
+  {
+    "user": {
+      "login": "erin",
+      "type": "User"
+    },
+    "body": "I can reproduce this on the latest main branch.",
+    "created_at": "2026-03-02T09:00:00Z"
+  }
+]

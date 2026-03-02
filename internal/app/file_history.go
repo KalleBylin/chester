@@ -53,7 +53,7 @@ func FileHistory(ctx context.Context, runner execx.Runner, repo string, path str
 			entries = append(entries, fileHistoryEntry{
 				SHAs: []string{short},
 				PR:   &details,
-				Why:  FirstParagraph(details.Body),
+				Why:  PRWhy(details),
 			})
 			continue
 		}

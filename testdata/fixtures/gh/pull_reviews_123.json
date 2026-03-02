@@ -1,0 +1,29 @@
+[
+  {
+    "user": {
+      "login": "bob",
+      "type": "User"
+    },
+    "body": "Keep this branch-specific invalidation until legacy clients are removed.",
+    "state": "APPROVED",
+    "submitted_at": "2026-03-01T11:00:00Z"
+  },
+  {
+    "user": {
+      "login": "dana",
+      "type": "User"
+    },
+    "body": "",
+    "state": "COMMENTED",
+    "submitted_at": "2026-03-01T11:30:00Z"
+  },
+  {
+    "user": {
+      "login": "robot-review",
+      "type": "Bot"
+    },
+    "body": "Automated review",
+    "state": "COMMENTED",
+    "submitted_at": "2026-03-01T11:45:00Z"
+  }
+]
