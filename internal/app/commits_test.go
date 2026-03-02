@@ -4,7 +4,7 @@ import (
 	"context"
 	"testing"
 
-	"chester/internal/execx"
+	"github.com/KalleBylin/chester/internal/execx"
 )
 
 func TestResolveCommitPRNumberUsesCommitPullsEndpoint(t *testing.T) {

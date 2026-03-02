@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"strings"
 
-	"chester/internal/execx"
+	"github.com/KalleBylin/chester/internal/execx"
 )
 
 func ResolveRepoSlug(ctx context.Context, runner execx.Runner, override string) (string, error) {

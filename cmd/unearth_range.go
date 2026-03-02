@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"strings"
 
-	"chester/internal/app"
+	"github.com/KalleBylin/chester/internal/app"
 	"github.com/spf13/cobra"
 )
 

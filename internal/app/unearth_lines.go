@@ -8,7 +8,7 @@ import (
 	"strconv"
 	"strings"
 
-	"chester/internal/execx"
+	"github.com/KalleBylin/chester/internal/execx"
 )
 
 type BlameSpan struct {

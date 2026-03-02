@@ -5,7 +5,7 @@ import (
 	"errors"
 	"testing"
 
-	"chester/internal/execx"
+	"github.com/KalleBylin/chester/internal/execx"
 )
 
 func TestResolveRepoSlugUsesOverride(t *testing.T) {

@@ -5,8 +5,8 @@ import (
 	"strings"
 	"testing"
 
-	"chester/internal/execx"
-	"chester/internal/testutil"
+	"github.com/KalleBylin/chester/internal/execx"
+	"github.com/KalleBylin/chester/internal/testutil"
 )
 
 func TestReadThreadCommandEndToEnd(t *testing.T) {
@@ -275,6 +275,31 @@ func TestUnearthRangeCommandEndToEnd(t *testing.T) {
 	want := strings.TrimSpace(string(testutil.ReadFixture(t, "golden", "unearth_range.md")))
 	if strings.TrimSpace(stdout) != want {
 		t.Fatalf("stdout mismatch\nwant:\n%s\n\ngot:\n%s", want, stdout)
+	}
+}
+
+func TestOnboardCommandOutputsAgentSnippet(t *testing.T) {
+	t.Parallel()
+
+	stdout, stderr, err := executeForTest(t, execx.NewMockRunner(), "onboard")
+	if err != nil {
+		t.Fatalf("Execute() error = %v", err)
+	}
+	if stderr != "" {
+		t.Fatalf("stderr = %q, want empty", stderr)
+	}
+
+	wantFragments := []string{
+		"chester Onboarding",
+		"Chesterton's Fence",
+		"`chester read-thread <id>`",
+		"`chester --help`",
+		".github/copilot-instructions.md",
+	}
+	for _, fragment := range wantFragments {
+		if !strings.Contains(stdout, fragment) {
+			t.Fatalf("stdout missing %q\n%s", fragment, stdout)
+		}
 	}
 }
 

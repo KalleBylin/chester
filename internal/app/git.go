@@ -5,7 +5,7 @@ import (
 	"errors"
 	"strings"
 
-	"chester/internal/execx"
+	"github.com/KalleBylin/chester/internal/execx"
 )
 
 type CommitRow struct {

@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"strings"
 
-	"chester/internal/execx"
+	"github.com/KalleBylin/chester/internal/execx"
 )
 
 type rangeEntry struct {

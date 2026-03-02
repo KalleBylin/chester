@@ -33,3 +33,7 @@ go.work.sum
 
 # Local build cache used by the project Makefile
 .gocache/
+.gomodcache/
+
+# Local binary output
+bin/

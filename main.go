@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"os"
 
-	"chester/cmd"
+	"github.com/KalleBylin/chester/cmd"
 )
 
 func main() {

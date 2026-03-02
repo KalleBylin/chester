@@ -1,6 +1,29 @@
 # chester
 
-`chester` is a lightweight, stateless CLI for deterministic repository archaeology. It shells out to local `git` and the authenticated `gh` CLI, then emits compressed Markdown for LLM context windows.
+`chester` is named for Chesterton's Fence: before an agent deletes, rewrites, or "simplifies" a piece of code, it should first understand why that code exists. `chester` is a lightweight, stateless CLI for deterministic repository archaeology. It shells out to local `git` and the authenticated `gh` CLI, then emits compressed Markdown for LLM context windows so agents can pay down verification debt before they make changes.
+
+## Install
+
+### Go Install
+
+```bash
+go install github.com/KalleBylin/chester@latest
+chester --help
+```
+
+### From Source
+
+```bash
+git clone git@github.com:KalleBylin/chester.git
+cd chester
+make test
+make build
+./bin/chester --help
+```
+
+## Agent Onboarding
+
+Agents are the primary users. Run `chester onboard` and paste the emitted snippet into `AGENTS.md` (or `.github/copilot-instructions.md`) so coding agents know the anti-magic rule and the four core primitives.
 
 ## Principles
 
@@ -10,6 +33,10 @@
 - No repository mutation
 
 ## Commands
+
+### `chester onboard`
+
+Prints a minimal snippet for `AGENTS.md` that teaches agents when and how to use `chester` without bloating the repository's agent instructions.
 
 ### `chester read-thread <id>`
 
@@ -47,8 +74,10 @@ Walks a git revision range with `git log --reverse`, resolves each commit to a P
 
 ## Requirements
 
+- Go 1.26+ for `go install` or source builds
 - `git` must be installed
 - `gh` must be installed and authenticated for GitHub
+- `gh auth login` must have been completed before using remote-backed commands
 - either:
   - the current repository has a GitHub `origin` remote
   - or `--repo owner/name` is provided
@@ -60,4 +89,5 @@ Use the provided `Makefile` so Go build cache writes stay inside the workspace:
 ```bash
 make test
 make build
+./bin/chester --help
 ```

@@ -5,8 +5,8 @@ import (
 	"strings"
 	"testing"
 
-	"chester/internal/execx"
-	"chester/internal/testutil"
+	"github.com/KalleBylin/chester/internal/execx"
+	"github.com/KalleBylin/chester/internal/testutil"
 )
 
 func TestParseBlameSpansCollapsesContiguousLines(t *testing.T) {

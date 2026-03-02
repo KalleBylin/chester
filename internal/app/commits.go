@@ -7,7 +7,7 @@ import (
 	"strconv"
 	"strings"
 
-	"chester/internal/execx"
+	"github.com/KalleBylin/chester/internal/execx"
 )
 
 var prSummaryFields = []string{"number", "title", "body", "url", "mergedAt"}

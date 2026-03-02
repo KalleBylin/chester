@@ -1,7 +1,7 @@
 package cmd
 
 import (
-	"chester/internal/execx"
+	"github.com/KalleBylin/chester/internal/execx"
 
 	"github.com/spf13/cobra"
 )
@@ -37,6 +37,7 @@ func NewRootCmdWithOptions(opts *Options) *cobra.Command {
 	root.AddCommand(newFileHistoryCmd(opts))
 	root.AddCommand(newUnearthLinesCmd(opts))
 	root.AddCommand(newUnearthRangeCmd(opts))
+	root.AddCommand(newOnboardCmd())
 
 	return root
 }

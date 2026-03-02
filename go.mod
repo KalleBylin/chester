@@ -1,4 +1,4 @@
-module chester
+module github.com/KalleBylin/chester
 
 go 1.26.0
 

@@ -8,7 +8,7 @@ import (
 	"sort"
 	"strings"
 
-	"chester/internal/execx"
+	"github.com/KalleBylin/chester/internal/execx"
 )
 
 var (
