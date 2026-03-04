@@ -89,12 +89,16 @@ func renderFileHistory(path string, entries []fileHistoryEntry) string {
 		}
 
 		out.WriteString("- ")
-		out.WriteString(strings.Join(entry.SHAs, ","))
-		out.WriteString(" ")
 		if entry.Direct {
 			out.WriteString("direct\n")
+			out.WriteString("  commit: ")
+			out.WriteString(entry.SHAs[0])
+			out.WriteString("\n")
 		} else {
 			fmt.Fprintf(&out, "PR #%d %s\n", entry.PR.Number, entry.PR.Title)
+			out.WriteString("  commits: ")
+			out.WriteString(strings.Join(entry.SHAs, ","))
+			out.WriteString("\n")
 		}
 		out.WriteString("  why: ")
 		out.WriteString(entry.Why)

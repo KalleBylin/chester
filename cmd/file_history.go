@@ -11,6 +11,7 @@ func newFileHistoryCmd(opts *Options) *cobra.Command {
 	return &cobra.Command{
 		Use:          "file-history <path>",
 		Short:        "Show chronological PR-backed history for one file",
+		Example:      "chester file-history internal/auth/session.go",
 		Args:         cobra.ExactArgs(1),
 		SilenceUsage: true,
 		RunE: func(cmd *cobra.Command, args []string) error {

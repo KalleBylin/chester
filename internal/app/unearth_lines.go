@@ -53,7 +53,7 @@ func UnearthLines(ctx context.Context, runner execx.Runner, repo string, file st
 			return "", err
 		}
 
-		header := "- " + renderBlameSpan(span) + " " + shortSHA(span.SHA) + " "
+		header := "- " + renderBlameSpan(span) + "\n" + "  commit: " + shortSHA(span.SHA) + "\n"
 		if hasPR {
 			details, ok := prCache[number]
 			if !ok {
@@ -75,7 +75,7 @@ func UnearthLines(ctx context.Context, runner execx.Runner, repo string, file st
 
 			var block strings.Builder
 			block.WriteString(header)
-			fmt.Fprintf(&block, "PR #%d %s\n", details.Number, details.Title)
+			fmt.Fprintf(&block, "  source: PR #%d %s\n", details.Number, details.Title)
 			block.WriteString("  why: ")
 			block.WriteString(PRWhy(details))
 			block.WriteString("\n")
@@ -102,7 +102,7 @@ func UnearthLines(ctx context.Context, runner execx.Runner, repo string, file st
 		}
 
 		lines = append(lines, strings.Join([]string{
-			header + "direct",
+			header + "  source: direct",
 			"  why: " + DirectCommitWhy(message),
 		}, "\n"))
 	}

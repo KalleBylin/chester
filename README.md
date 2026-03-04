@@ -65,8 +65,8 @@ Generates shell completion scripts using Cobra's built-in completion support.
 Fetches a remote issue or pull request thread, strips GitHub UI noise, and prints:
 
 - the original body
-- chronological human comments
-- PR reviews interleaved as thread events
+- a `Comments` section with chronological human comments
+- a `Reviews` section for PR review summaries
 
 If the ID is not a pull request, `chester` falls back to `gh issue view`.
 
@@ -80,12 +80,13 @@ Walks local history for one exact file with:
 
 Adjacent commits that map to the same PR are collapsed into one timeline entry.
 
-### `chester unearth-lines <file> -L <start>,<end>`
+### `chester unearth-lines <file>:<start>:<end>`
 
 Blames an exact line range with `git blame --line-porcelain`, resolves the introducing commits to PRs, and prints:
 
 - line spans
-- PR title/body summaries
+- the blamed commit SHA
+- the PR or direct-commit source
 - top review comments for the exact file path only
 
 If a blamed commit has no PR, `chester` falls back to the direct commit message.

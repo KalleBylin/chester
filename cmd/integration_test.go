@@ -65,8 +65,8 @@ func TestFileHistoryCommandEndToEnd(t *testing.T) {
 
 	runner := execx.NewMockRunner(
 		execx.Expectation{
-			Name: "git",
-			Args: []string{"rev-parse", "--is-inside-work-tree"},
+			Name:   "git",
+			Args:   []string{"rev-parse", "--is-inside-work-tree"},
 			Result: execx.Result{Stdout: []byte("true\n")},
 		},
 		execx.Expectation{
@@ -81,23 +81,23 @@ func TestFileHistoryCommandEndToEnd(t *testing.T) {
 			},
 		},
 		execx.Expectation{
-			Name: "gh",
-			Args: []string{"api", "-H", "Accept: application/vnd.github+json", "repos/acme/chester/commits/1111111111111111111111111111111111111111/pulls"},
+			Name:   "gh",
+			Args:   []string{"api", "-H", "Accept: application/vnd.github+json", "repos/acme/chester/commits/1111111111111111111111111111111111111111/pulls"},
 			Result: execx.Result{Stdout: []byte(`[{"number":98,"merged_at":"2026-02-15T18:00:00Z"}]`)},
 		},
 		execx.Expectation{
-			Name: "gh",
-			Args: []string{"pr", "view", "98", "--repo", "acme/chester", "--json", "number,title,body,url,mergedAt"},
+			Name:   "gh",
+			Args:   []string{"pr", "view", "98", "--repo", "acme/chester", "--json", "number,title,body,url,mergedAt"},
 			Result: execx.Result{Stdout: testutil.ReadFixture(t, "gh", "pr_view_98.json")},
 		},
 		execx.Expectation{
-			Name: "gh",
-			Args: []string{"api", "-H", "Accept: application/vnd.github+json", "repos/acme/chester/commits/2222222222222222222222222222222222222222/pulls"},
+			Name:   "gh",
+			Args:   []string{"api", "-H", "Accept: application/vnd.github+json", "repos/acme/chester/commits/2222222222222222222222222222222222222222/pulls"},
 			Result: execx.Result{Stdout: []byte(`[{"number":98,"merged_at":"2026-02-15T18:00:00Z"}]`)},
 		},
 		execx.Expectation{
-			Name: "gh",
-			Args: []string{"api", "-H", "Accept: application/vnd.github+json", "repos/acme/chester/commits/3333333333333333333333333333333333333333/pulls"},
+			Name:   "gh",
+			Args:   []string{"api", "-H", "Accept: application/vnd.github+json", "repos/acme/chester/commits/3333333333333333333333333333333333333333/pulls"},
 			Result: execx.Result{Stdout: []byte(`[]`)},
 		},
 		execx.Expectation{
@@ -128,8 +128,8 @@ func TestUnearthLinesCommandEndToEnd(t *testing.T) {
 
 	runner := execx.NewMockRunner(
 		execx.Expectation{
-			Name: "git",
-			Args: []string{"rev-parse", "--is-inside-work-tree"},
+			Name:   "git",
+			Args:   []string{"rev-parse", "--is-inside-work-tree"},
 			Result: execx.Result{Stdout: []byte("true\n")},
 		},
 		execx.Expectation{
@@ -153,33 +153,33 @@ func TestUnearthLinesCommandEndToEnd(t *testing.T) {
 			},
 		},
 		execx.Expectation{
-			Name: "gh",
-			Args: []string{"api", "-H", "Accept: application/vnd.github+json", "repos/acme/chester/commits/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa/pulls"},
+			Name:   "gh",
+			Args:   []string{"api", "-H", "Accept: application/vnd.github+json", "repos/acme/chester/commits/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa/pulls"},
 			Result: execx.Result{Stdout: []byte(`[]`)},
 		},
 		execx.Expectation{
-			Name: "git",
-			Args: []string{"show", "-s", "--format=%s", "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"},
+			Name:   "git",
+			Args:   []string{"show", "-s", "--format=%s", "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"},
 			Result: execx.Result{Stdout: []byte("Bypass ORM for hot path query (#77)\n")},
 		},
 		execx.Expectation{
-			Name: "gh",
-			Args: []string{"pr", "view", "77", "--repo", "acme/chester", "--json", "number,title,body,url,mergedAt"},
+			Name:   "gh",
+			Args:   []string{"pr", "view", "77", "--repo", "acme/chester", "--json", "number,title,body,url,mergedAt"},
 			Result: execx.Result{Stdout: testutil.ReadFixture(t, "gh", "pr_view_77.json")},
 		},
 		execx.Expectation{
-			Name: "gh",
-			Args: []string{"api", "--paginate", "-H", "Accept: application/vnd.github+json", "repos/acme/chester/pulls/77/comments?per_page=100"},
+			Name:   "gh",
+			Args:   []string{"api", "--paginate", "-H", "Accept: application/vnd.github+json", "repos/acme/chester/pulls/77/comments?per_page=100"},
 			Result: execx.Result{Stdout: testutil.ReadFixture(t, "gh", "pull_comments_77.json")},
 		},
 		execx.Expectation{
-			Name: "gh",
-			Args: []string{"api", "-H", "Accept: application/vnd.github+json", "repos/acme/chester/commits/bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb/pulls"},
+			Name:   "gh",
+			Args:   []string{"api", "-H", "Accept: application/vnd.github+json", "repos/acme/chester/commits/bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb/pulls"},
 			Result: execx.Result{Stdout: []byte(`[]`)},
 		},
 		execx.Expectation{
-			Name: "git",
-			Args: []string{"show", "-s", "--format=%s", "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"},
+			Name:   "git",
+			Args:   []string{"show", "-s", "--format=%s", "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"},
 			Result: execx.Result{Stdout: []byte("Direct fix\n")},
 		},
 		execx.Expectation{
@@ -210,8 +210,8 @@ func TestUnearthRangeCommandEndToEnd(t *testing.T) {
 
 	runner := execx.NewMockRunner(
 		execx.Expectation{
-			Name: "git",
-			Args: []string{"rev-parse", "--is-inside-work-tree"},
+			Name:   "git",
+			Args:   []string{"rev-parse", "--is-inside-work-tree"},
 			Result: execx.Result{Stdout: []byte("true\n")},
 		},
 		execx.Expectation{
@@ -227,33 +227,33 @@ func TestUnearthRangeCommandEndToEnd(t *testing.T) {
 			},
 		},
 		execx.Expectation{
-			Name: "gh",
-			Args: []string{"api", "-H", "Accept: application/vnd.github+json", "repos/acme/chester/commits/1111111111111111111111111111111111111111/pulls"},
+			Name:   "gh",
+			Args:   []string{"api", "-H", "Accept: application/vnd.github+json", "repos/acme/chester/commits/1111111111111111111111111111111111111111/pulls"},
 			Result: execx.Result{Stdout: []byte(`[]`)},
 		},
 		execx.Expectation{
-			Name: "gh",
-			Args: []string{"pr", "view", "98", "--repo", "acme/chester", "--json", "number,title,body,url,mergedAt"},
+			Name:   "gh",
+			Args:   []string{"pr", "view", "98", "--repo", "acme/chester", "--json", "number,title,body,url,mergedAt"},
 			Result: execx.Result{Stdout: testutil.ReadFixture(t, "gh", "pr_view_98.json")},
 		},
 		execx.Expectation{
-			Name: "gh",
-			Args: []string{"api", "-H", "Accept: application/vnd.github+json", "repos/acme/chester/commits/2222222222222222222222222222222222222222/pulls"},
+			Name:   "gh",
+			Args:   []string{"api", "-H", "Accept: application/vnd.github+json", "repos/acme/chester/commits/2222222222222222222222222222222222222222/pulls"},
 			Result: execx.Result{Stdout: []byte(`[]`)},
 		},
 		execx.Expectation{
-			Name: "gh",
-			Args: []string{"api", "-H", "Accept: application/vnd.github+json", "repos/acme/chester/commits/3333333333333333333333333333333333333333/pulls"},
+			Name:   "gh",
+			Args:   []string{"api", "-H", "Accept: application/vnd.github+json", "repos/acme/chester/commits/3333333333333333333333333333333333333333/pulls"},
 			Result: execx.Result{Stdout: []byte(`[]`)},
 		},
 		execx.Expectation{
-			Name: "gh",
-			Args: []string{"pr", "view", "151", "--repo", "acme/chester", "--json", "number,title,body,url,mergedAt"},
+			Name:   "gh",
+			Args:   []string{"pr", "view", "151", "--repo", "acme/chester", "--json", "number,title,body,url,mergedAt"},
 			Result: execx.Result{Stdout: testutil.ReadFixture(t, "gh", "pr_view_151.json")},
 		},
 		execx.Expectation{
-			Name: "gh",
-			Args: []string{"api", "-H", "Accept: application/vnd.github+json", "repos/acme/chester/commits/4444444444444444444444444444444444444444/pulls"},
+			Name:   "gh",
+			Args:   []string{"api", "-H", "Accept: application/vnd.github+json", "repos/acme/chester/commits/4444444444444444444444444444444444444444/pulls"},
 			Result: execx.Result{Stdout: []byte(`[]`)},
 		},
 		execx.Expectation{
@@ -292,9 +292,10 @@ func TestOnboardCommandOutputsAgentSnippet(t *testing.T) {
 
 	wantFragments := []string{
 		"chester Onboarding",
-		"Chesterton's Fence",
+		"Paste this into AGENTS.md or .github/copilot-instructions.md:",
+		"Do not invent syntax",
+		"`chester unearth-lines <file>:<start>:<end>`",
 		"`chester read-thread <id>`",
-		"`chester --help`",
 		".github/copilot-instructions.md",
 	}
 	for _, fragment := range wantFragments {

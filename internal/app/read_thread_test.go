@@ -150,7 +150,10 @@ func TestReadThreadUsesEmptyBodyPlaceholder(t *testing.T) {
 	if !strings.Contains(got, "## Body\n(empty)") {
 		t.Fatalf("ReadThread() = %q, want empty body placeholder", got)
 	}
-	if !strings.Contains(got, "## Thread\n(none)") {
-		t.Fatalf("ReadThread() = %q, want empty thread placeholder", got)
+	if !strings.Contains(got, "## Comments\n(none)") {
+		t.Fatalf("ReadThread() = %q, want empty comments placeholder", got)
+	}
+	if !strings.Contains(got, "## Reviews\n(none)") {
+		t.Fatalf("ReadThread() = %q, want empty reviews placeholder", got)
 	}
 }

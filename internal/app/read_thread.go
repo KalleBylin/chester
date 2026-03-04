@@ -53,10 +53,14 @@ type readThreadReview struct {
 }
 
 type readThreadEvent struct {
-	When   string
-	Label  string
-	Body   string
-	Review bool
+	When  string
+	Label string
+	Body  string
+}
+
+type readThreadSection struct {
+	Heading string
+	Events  []readThreadEvent
 }
 
 func ReadThread(ctx context.Context, runner execx.Runner, repo string, id string) (string, error) {
@@ -90,25 +94,28 @@ func renderPRThread(ctx context.Context, runner execx.Runner, repo string, body 
 		return "", err
 	}
 
-	events := make([]readThreadEvent, 0, len(comments)+len(reviews))
+	commentEvents := make([]readThreadEvent, 0, len(comments))
 	for _, comment := range comments {
 		rendered, ok := newCommentEvent(comment)
 		if ok {
-			events = append(events, rendered)
+			commentEvents = append(commentEvents, rendered)
 		}
 	}
+	sortEvents(commentEvents)
+
+	reviewEvents := make([]readThreadEvent, 0, len(reviews))
 	for _, review := range reviews {
 		rendered, ok := newReviewEvent(review)
 		if ok {
-			events = append(events, rendered)
+			reviewEvents = append(reviewEvents, rendered)
 		}
 	}
+	sortEvents(reviewEvents)
 
-	sort.SliceStable(events, func(i, j int) bool {
-		return events[i].When < events[j].When
-	})
-
-	return renderThreadDocument(payload.Number, "pr", payload.Title, payload.URL, payload.Body, events), nil
+	return renderThreadDocument(payload.Number, "pr", payload.Title, payload.URL, payload.Body, []readThreadSection{
+		{Heading: "Comments", Events: commentEvents},
+		{Heading: "Reviews", Events: reviewEvents},
+	}), nil
 }
 
 func renderIssueThread(ctx context.Context, runner execx.Runner, repo string, body []byte) (string, error) {
@@ -129,12 +136,11 @@ func renderIssueThread(ctx context.Context, runner execx.Runner, repo string, bo
 			events = append(events, rendered)
 		}
 	}
+	sortEvents(events)
 
-	sort.SliceStable(events, func(i, j int) bool {
-		return events[i].When < events[j].When
-	})
-
-	return renderThreadDocument(payload.Number, "issue", payload.Title, payload.URL, payload.Body, events), nil
+	return renderThreadDocument(payload.Number, "issue", payload.Title, payload.URL, payload.Body, []readThreadSection{
+		{Heading: "Comments", Events: events},
+	}), nil
 }
 
 func newCommentEvent(comment readThreadIssueComment) (readThreadEvent, bool) {
@@ -166,9 +172,15 @@ func newReviewEvent(review readThreadReview) (readThreadEvent, bool) {
 
 	return readThreadEvent{
 		When:  review.SubmittedAt,
-		Label: "review/" + review.State + " @" + review.User.Login,
+		Label: review.State + " @" + review.User.Login,
 		Body:  body,
 	}, true
+}
+
+func sortEvents(events []readThreadEvent) {
+	sort.SliceStable(events, func(i, j int) bool {
+		return events[i].When < events[j].When
+	})
 }
 
 func loadIssueComments(ctx context.Context, runner execx.Runner, repo string, number int) ([]readThreadIssueComment, error) {
@@ -199,7 +211,7 @@ func loadPRReviews(ctx context.Context, runner execx.Runner, repo string, number
 	return reviews, nil
 }
 
-func renderThreadDocument(number int, kind string, title string, url string, body string, events []readThreadEvent) string {
+func renderThreadDocument(number int, kind string, title string, url string, body string, sections []readThreadSection) string {
 	var out strings.Builder
 
 	fmt.Fprintf(&out, "#%d [%s] %s\n", number, kind, title)
@@ -214,20 +226,22 @@ func renderThreadDocument(number int, kind string, title string, url string, bod
 		out.WriteString("\n")
 	}
 
-	out.WriteString("\n## Thread\n")
-	if len(events) == 0 {
-		out.WriteString("(none)\n")
-		return out.String()
-	}
-
-	for i, event := range events {
-		if i > 0 {
-			out.WriteString("\n")
+	for _, section := range sections {
+		fmt.Fprintf(&out, "\n## %s\n", section.Heading)
+		if len(section.Events) == 0 {
+			out.WriteString("(none)\n")
+			continue
 		}
-		out.WriteString("- ")
-		out.WriteString(event.Label)
-		out.WriteString("\n")
-		writeIndentedBlock(&out, event.Body)
+
+		for i, event := range section.Events {
+			if i > 0 {
+				out.WriteString("\n")
+			}
+			out.WriteString("- ")
+			out.WriteString(event.Label)
+			out.WriteString("\n")
+			writeIndentedBlock(&out, event.Body)
+		}
 	}
 
 	return out.String()

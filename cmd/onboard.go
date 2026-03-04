@@ -9,20 +9,20 @@ import (
 
 const agentsContent = `## Repository Archaeology
 
-This project uses **chester** for deterministic repository archaeology.
-It is named for Chesterton's Fence: before deleting or rewriting code, use chester to understand why the code exists.
+Use ` + "`chester`" + ` before changing unfamiliar code so you understand why it exists.
 
-**Anti-magic rule:**
-- Provide exact IDs, file paths, line ranges, or git ranges.
-- chester retrieves data only; it does not guess targets or make qualitative judgments.
+Rules:
+- Copy the command forms below exactly. Do not invent syntax.
+- Pass exact IDs, file paths, line ranges, or git ranges.
+- ` + "`chester`" + ` only fetches history and discussion. You decide what matters.
 
-**Quick reference:**
-- ` + "`chester read-thread <id>`" + ` - Fetch the issue or PR conversation
-- ` + "`chester file-history <path>`" + ` - Walk the history of one exact file
-- ` + "`chester unearth-lines <file> -L <start>,<end>`" + ` - Explain why exact lines exist
-- ` + "`chester unearth-range <from>..<to>`" + ` - Summarize PR intent across a git range
+Start with the narrowest command:
+- ` + "`chester unearth-lines <file>:<start>:<end>`" + ` - why exact code exists
+- ` + "`chester file-history <path>`" + ` - history for one file
+- ` + "`chester read-thread <id>`" + ` - PR or issue body, comments, and reviews
+- ` + "`chester unearth-range <from>..<to>`" + ` - PRs represented by a git range
 
-For full command details: ` + "`chester --help`" + ``
+If a ` + "`chester`" + ` command gives you a PR number, follow it with ` + "`chester read-thread <id>`" + `.`
 
 func renderOnboardInstructions(w io.Writer) error {
 	writef := func(format string, args ...any) error {
@@ -37,7 +37,7 @@ func renderOnboardInstructions(w io.Writer) error {
 	if err := writef("\nchester Onboarding\n\n"); err != nil {
 		return err
 	}
-	if err := writeln("Add this minimal snippet to AGENTS.md (or create it):"); err != nil {
+	if err := writeln("Paste this into AGENTS.md or .github/copilot-instructions.md:"); err != nil {
 		return err
 	}
 	if err := writeln(""); err != nil {
@@ -50,30 +50,6 @@ func renderOnboardInstructions(w io.Writer) error {
 		return err
 	}
 	if err := writeln("--- END AGENTS.MD CONTENT ---"); err != nil {
-		return err
-	}
-	if err := writeln(""); err != nil {
-		return err
-	}
-	if err := writeln("For GitHub Copilot users:"); err != nil {
-		return err
-	}
-	if err := writeln("Add the same content to .github/copilot-instructions.md"); err != nil {
-		return err
-	}
-	if err := writeln(""); err != nil {
-		return err
-	}
-	if err := writeln("How it works:"); err != nil {
-		return err
-	}
-	if err := writeln("  - chester keeps AGENTS.md lean while still teaching agents the exact primitives"); err != nil {
-		return err
-	}
-	if err := writeln("  - agents choose exact inputs and compose commands themselves"); err != nil {
-		return err
-	}
-	if err := writeln("  - the anti-magic rule keeps the tool deterministic and token-efficient"); err != nil {
 		return err
 	}
 	return nil

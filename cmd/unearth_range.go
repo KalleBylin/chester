@@ -12,6 +12,7 @@ func newUnearthRangeCmd(opts *Options) *cobra.Command {
 	return &cobra.Command{
 		Use:          "unearth-range <from_ref>..<to_ref>",
 		Short:        "Render a dense list of PRs represented by a git revision range",
+		Example:      "chester unearth-range main..feature",
 		Args:         cobra.ExactArgs(1),
 		SilenceUsage: true,
 		RunE: func(cmd *cobra.Command, args []string) error {

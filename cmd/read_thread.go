@@ -10,7 +10,8 @@ import (
 func newReadThreadCmd(opts *Options) *cobra.Command {
 	return &cobra.Command{
 		Use:          "read-thread <id>",
-		Short:        "Fetch an issue or PR thread and render a compact conversation transcript",
+		Short:        "Fetch an issue or PR thread and render structured human discussion",
+		Example:      "chester read-thread 123",
 		Args:         cobra.ExactArgs(1),
 		SilenceUsage: true,
 		RunE: func(cmd *cobra.Command, args []string) error {
