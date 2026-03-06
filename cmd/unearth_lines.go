@@ -15,14 +15,16 @@ var (
 	inlineDashLineSpec  = regexp.MustCompile(`^(.+):(\d+)-(\d+)$`)
 )
 
-func newUnearthLinesCmd(opts *Options) *cobra.Command {
+func newWhyLinesCmd(opts *Options) *cobra.Command {
 	var lineSpec string
+	var asJSON bool
 
 	command := &cobra.Command{
-		Use:          "unearth-lines <file>:<start>:<end>",
+		Use:          "why-lines <file>:<start>:<end>",
+		Aliases:      []string{"unearth-lines"},
 		Short:        "Explain why an exact blamed line range exists",
 		Long:         "Use an editor-style location to point at the exact lines you want to explain. The legacy --lines flag is still accepted for compatibility, but the inline form is the primary syntax.",
-		Example:      "chester unearth-lines db/queries.go:112:115",
+		Example:      "chester why-lines db/queries.go:112:115",
 		Args:         cobra.ExactArgs(1),
 		SilenceUsage: true,
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -31,22 +33,17 @@ func newUnearthLinesCmd(opts *Options) *cobra.Command {
 				return err
 			}
 
-			repo, err := app.ResolveRepoSlug(cmd.Context(), opts.Runner, opts.Repo)
+			result, err := app.WhyLines(cmd.Context(), opts.Runner, app.MaybeResolveRepoSlug(cmd.Context(), opts.Runner, opts.Repo), file, start, end)
 			if err != nil {
 				return err
 			}
 
-			output, err := app.UnearthLines(cmd.Context(), opts.Runner, repo, file, start, end)
-			if err != nil {
-				return err
-			}
-
-			_, err = fmt.Fprintln(cmd.OutOrStdout(), output)
-			return err
+			return writeCommandOutput(cmd, asJSON, app.RenderWhyLinesMarkdown(result), result)
 		},
 	}
 
 	command.Flags().StringVarP(&lineSpec, "lines", "L", "", "line range in start,end form")
+	command.Flags().BoolVar(&asJSON, "json", false, "render structured JSON instead of Markdown")
 	_ = command.Flags().MarkHidden("lines")
 	return command
 }

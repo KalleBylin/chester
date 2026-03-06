@@ -44,6 +44,16 @@ func TestReadThreadCommandEndToEnd(t *testing.T) {
 				Stdout: testutil.ReadFixture(t, "gh", "pull_reviews_123.json"),
 			},
 		},
+		execx.Expectation{
+			Name: "gh",
+			Args: []string{
+				"api", "--paginate", "-H", "Accept: application/vnd.github+json",
+				"repos/acme/chester/pulls/123/comments?per_page=100",
+			},
+			Result: execx.Result{
+				Stdout: testutil.ReadFixture(t, "gh", "pull_comments_123.json"),
+			},
+		},
 	)
 
 	stdout, stderr, err := executeForTest(t, runner, "-R", "acme/chester", "read-thread", "123")
@@ -109,7 +119,7 @@ func TestFileHistoryCommandEndToEnd(t *testing.T) {
 		},
 	)
 
-	stdout, stderr, err := executeForTest(t, runner, "-R", "acme/chester", "file-history", "internal/auth/session.go")
+	stdout, stderr, err := executeForTest(t, runner, "-R", "acme/chester", "why-file", "internal/auth/session.go")
 	if err != nil {
 		t.Fatalf("Execute() error = %v", err)
 	}
@@ -153,11 +163,6 @@ func TestUnearthLinesCommandEndToEnd(t *testing.T) {
 			},
 		},
 		execx.Expectation{
-			Name:   "gh",
-			Args:   []string{"api", "-H", "Accept: application/vnd.github+json", "repos/acme/chester/commits/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa/pulls"},
-			Result: execx.Result{Stdout: []byte(`[]`)},
-		},
-		execx.Expectation{
 			Name:   "git",
 			Args:   []string{"show", "-s", "--format=%s", "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"},
 			Result: execx.Result{Stdout: []byte("Bypass ORM for hot path query (#77)\n")},
@@ -173,14 +178,14 @@ func TestUnearthLinesCommandEndToEnd(t *testing.T) {
 			Result: execx.Result{Stdout: testutil.ReadFixture(t, "gh", "pull_comments_77.json")},
 		},
 		execx.Expectation{
-			Name:   "gh",
-			Args:   []string{"api", "-H", "Accept: application/vnd.github+json", "repos/acme/chester/commits/bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb/pulls"},
-			Result: execx.Result{Stdout: []byte(`[]`)},
-		},
-		execx.Expectation{
 			Name:   "git",
 			Args:   []string{"show", "-s", "--format=%s", "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"},
 			Result: execx.Result{Stdout: []byte("Direct fix\n")},
+		},
+		execx.Expectation{
+			Name:   "gh",
+			Args:   []string{"api", "-H", "Accept: application/vnd.github+json", "repos/acme/chester/commits/bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb/pulls"},
+			Result: execx.Result{Stdout: []byte(`[]`)},
 		},
 		execx.Expectation{
 			Name: "git",
@@ -191,7 +196,7 @@ func TestUnearthLinesCommandEndToEnd(t *testing.T) {
 		},
 	)
 
-	stdout, stderr, err := executeForTest(t, runner, "-R", "acme/chester", "unearth-lines", "db/queries.go", "-L", "112,115")
+	stdout, stderr, err := executeForTest(t, runner, "-R", "acme/chester", "why-lines", "db/queries.go:112:115")
 	if err != nil {
 		t.Fatalf("Execute() error = %v", err)
 	}
@@ -228,23 +233,8 @@ func TestUnearthRangeCommandEndToEnd(t *testing.T) {
 		},
 		execx.Expectation{
 			Name:   "gh",
-			Args:   []string{"api", "-H", "Accept: application/vnd.github+json", "repos/acme/chester/commits/1111111111111111111111111111111111111111/pulls"},
-			Result: execx.Result{Stdout: []byte(`[]`)},
-		},
-		execx.Expectation{
-			Name:   "gh",
 			Args:   []string{"pr", "view", "98", "--repo", "acme/chester", "--json", "number,title,body,url,mergedAt"},
 			Result: execx.Result{Stdout: testutil.ReadFixture(t, "gh", "pr_view_98.json")},
-		},
-		execx.Expectation{
-			Name:   "gh",
-			Args:   []string{"api", "-H", "Accept: application/vnd.github+json", "repos/acme/chester/commits/2222222222222222222222222222222222222222/pulls"},
-			Result: execx.Result{Stdout: []byte(`[]`)},
-		},
-		execx.Expectation{
-			Name:   "gh",
-			Args:   []string{"api", "-H", "Accept: application/vnd.github+json", "repos/acme/chester/commits/3333333333333333333333333333333333333333/pulls"},
-			Result: execx.Result{Stdout: []byte(`[]`)},
 		},
 		execx.Expectation{
 			Name:   "gh",
@@ -265,7 +255,7 @@ func TestUnearthRangeCommandEndToEnd(t *testing.T) {
 		},
 	)
 
-	stdout, stderr, err := executeForTest(t, runner, "-R", "acme/chester", "unearth-range", "main..feature")
+	stdout, stderr, err := executeForTest(t, runner, "-R", "acme/chester", "why-range", "main..feature")
 	if err != nil {
 		t.Fatalf("Execute() error = %v", err)
 	}
@@ -276,6 +266,71 @@ func TestUnearthRangeCommandEndToEnd(t *testing.T) {
 	want := strings.TrimSpace(string(testutil.ReadFixture(t, "golden", "unearth_range.md")))
 	if strings.TrimSpace(stdout) != want {
 		t.Fatalf("stdout mismatch\nwant:\n%s\n\ngot:\n%s", want, stdout)
+	}
+}
+
+func TestTextHistoryCommandJSONOutput(t *testing.T) {
+	t.Parallel()
+
+	runner := execx.NewMockRunner(
+		execx.Expectation{
+			Name:   "git",
+			Args:   []string{"remote", "get-url", "origin"},
+			Result: execx.Result{Stdout: []byte("git@github.com:acme/chester.git\n")},
+		},
+		execx.Expectation{
+			Name:   "git",
+			Args:   []string{"rev-parse", "--is-inside-work-tree"},
+			Result: execx.Result{Stdout: []byte("true\n")},
+		},
+		execx.Expectation{
+			Name: "git",
+			Args: []string{"log", "--reverse", "--format=%H%x09%s", "-S", "SessionStore", "--", "internal/auth/session.go"},
+			Result: execx.Result{
+				Stdout: []byte(strings.Join([]string{
+					"1111111111111111111111111111111111111111\tExtract session store (#98)",
+					"2222222222222222222222222222222222222222\tRename SessionStore helper",
+				}, "\n")),
+			},
+		},
+		execx.Expectation{
+			Name:   "gh",
+			Args:   []string{"pr", "view", "98", "--repo", "acme/chester", "--json", "number,title,body,url,mergedAt"},
+			Result: execx.Result{Stdout: testutil.ReadFixture(t, "gh", "pr_view_98.json")},
+		},
+		execx.Expectation{
+			Name:   "gh",
+			Args:   []string{"api", "-H", "Accept: application/vnd.github+json", "repos/acme/chester/commits/2222222222222222222222222222222222222222/pulls"},
+			Result: execx.Result{Stdout: []byte(`[]`)},
+		},
+		execx.Expectation{
+			Name: "git",
+			Args: []string{"show", "-s", "--format=%s%n%n%b", "2222222222222222222222222222222222222222"},
+			Result: execx.Result{
+				Stdout: []byte("Rename SessionStore helper\n\nRename SessionStore helper to match new package layout.\n"),
+			},
+		},
+	)
+
+	stdout, stderr, err := executeForTest(t, runner, "text-history", "--path", "internal/auth/session.go", "--json", "SessionStore")
+	if err != nil {
+		t.Fatalf("Execute() error = %v", err)
+	}
+	if stderr != "" {
+		t.Fatalf("stderr = %q, want empty", stderr)
+	}
+
+	wantFragments := []string{
+		`"literal": "SessionStore"`,
+		`"path": "internal/auth/session.go"`,
+		`"number": 98`,
+		`"source": "pr_body"`,
+		`"source": "commit_body"`,
+	}
+	for _, fragment := range wantFragments {
+		if !strings.Contains(stdout, fragment) {
+			t.Fatalf("stdout missing %q\n%s", fragment, stdout)
+		}
 	}
 }
 
@@ -293,8 +348,11 @@ func TestOnboardCommandOutputsAgentSnippet(t *testing.T) {
 	wantFragments := []string{
 		"chester Onboarding",
 		"Paste this into AGENTS.md or .github/copilot-instructions.md:",
-		"Do not invent syntax",
-		"`chester unearth-lines <file>:<start>:<end>`",
+		"Start with the narrowest command.",
+		"Use exact IDs, paths, lines, literals, or git ranges.",
+		"`chester why-lines <file>:<start>:<end>`",
+		"`chester why-file <path>`",
+		"`chester text-history <literal>`",
 		"`chester read-thread <id>`",
 		".github/copilot-instructions.md",
 	}

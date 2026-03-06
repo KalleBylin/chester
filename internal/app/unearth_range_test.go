@@ -14,8 +14,8 @@ func TestUnearthRangeDedupesPRsByFirstSeenOrder(t *testing.T) {
 
 	runner := execx.NewMockRunner(
 		execx.Expectation{
-			Name: "git",
-			Args: []string{"rev-parse", "--is-inside-work-tree"},
+			Name:   "git",
+			Args:   []string{"rev-parse", "--is-inside-work-tree"},
 			Result: execx.Result{Stdout: []byte("true\n")},
 		},
 		execx.Expectation{
@@ -31,33 +31,18 @@ func TestUnearthRangeDedupesPRsByFirstSeenOrder(t *testing.T) {
 			},
 		},
 		execx.Expectation{
-			Name: "gh",
-			Args: []string{"api", "-H", "Accept: application/vnd.github+json", "repos/acme/chester/commits/1111111111111111111111111111111111111111/pulls"},
-			Result: execx.Result{Stdout: []byte(`[]`)},
-		},
-		execx.Expectation{
-			Name: "gh",
-			Args: []string{"pr", "view", "98", "--repo", "acme/chester", "--json", "number,title,body,url,mergedAt"},
+			Name:   "gh",
+			Args:   []string{"pr", "view", "98", "--repo", "acme/chester", "--json", "number,title,body,url,mergedAt"},
 			Result: execx.Result{Stdout: testutil.ReadFixture(t, "gh", "pr_view_98.json")},
 		},
 		execx.Expectation{
-			Name: "gh",
-			Args: []string{"api", "-H", "Accept: application/vnd.github+json", "repos/acme/chester/commits/2222222222222222222222222222222222222222/pulls"},
-			Result: execx.Result{Stdout: []byte(`[]`)},
-		},
-		execx.Expectation{
-			Name: "gh",
-			Args: []string{"api", "-H", "Accept: application/vnd.github+json", "repos/acme/chester/commits/3333333333333333333333333333333333333333/pulls"},
-			Result: execx.Result{Stdout: []byte(`[]`)},
-		},
-		execx.Expectation{
-			Name: "gh",
-			Args: []string{"pr", "view", "151", "--repo", "acme/chester", "--json", "number,title,body,url,mergedAt"},
+			Name:   "gh",
+			Args:   []string{"pr", "view", "151", "--repo", "acme/chester", "--json", "number,title,body,url,mergedAt"},
 			Result: execx.Result{Stdout: testutil.ReadFixture(t, "gh", "pr_view_151.json")},
 		},
 		execx.Expectation{
-			Name: "gh",
-			Args: []string{"api", "-H", "Accept: application/vnd.github+json", "repos/acme/chester/commits/4444444444444444444444444444444444444444/pulls"},
+			Name:   "gh",
+			Args:   []string{"api", "-H", "Accept: application/vnd.github+json", "repos/acme/chester/commits/4444444444444444444444444444444444444444/pulls"},
 			Result: execx.Result{Stdout: []byte(`[]`)},
 		},
 		execx.Expectation{

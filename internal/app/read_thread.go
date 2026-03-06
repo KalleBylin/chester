@@ -52,135 +52,140 @@ type readThreadReview struct {
 	SubmittedAt string `json:"submitted_at"`
 }
 
-type readThreadEvent struct {
-	When  string
-	Label string
-	Body  string
-}
-
-type readThreadSection struct {
-	Heading string
-	Events  []readThreadEvent
-}
-
-func ReadThread(ctx context.Context, runner execx.Runner, repo string, id string) (string, error) {
+func ReadThread(ctx context.Context, runner execx.Runner, repo string, id string) (ReadThreadResult, error) {
 	body, err := GHPRView(ctx, runner, repo, id, readThreadPRFields)
 	if err == nil {
 		return renderPRThread(ctx, runner, repo, body)
 	}
 	if !isPRLookupMiss(err) {
-		return "", err
+		return ReadThreadResult{}, err
 	}
 
 	body, err = GHIssueView(ctx, runner, repo, id, readThreadIssueFields)
 	if err != nil {
-		return "", err
+		return ReadThreadResult{}, err
 	}
 	return renderIssueThread(ctx, runner, repo, body)
 }
 
-func renderPRThread(ctx context.Context, runner execx.Runner, repo string, body []byte) (string, error) {
+func renderPRThread(ctx context.Context, runner execx.Runner, repo string, body []byte) (ReadThreadResult, error) {
 	var payload readThreadPRPayload
 	if err := json.Unmarshal(body, &payload); err != nil {
-		return "", err
+		return ReadThreadResult{}, err
 	}
 
 	comments, err := loadIssueComments(ctx, runner, repo, payload.Number)
 	if err != nil {
-		return "", err
+		return ReadThreadResult{}, err
 	}
 	reviews, err := loadPRReviews(ctx, runner, repo, payload.Number)
 	if err != nil {
-		return "", err
+		return ReadThreadResult{}, err
+	}
+	reviewComments, err := loadPRInlineReviewComments(ctx, runner, repo, payload.Number)
+	if err != nil {
+		return ReadThreadResult{}, err
 	}
 
-	commentEvents := make([]readThreadEvent, 0, len(comments))
+	threadComments := make([]ThreadComment, 0, len(comments))
 	for _, comment := range comments {
-		rendered, ok := newCommentEvent(comment)
+		rendered, ok := newThreadComment(comment)
 		if ok {
-			commentEvents = append(commentEvents, rendered)
+			threadComments = append(threadComments, rendered)
 		}
 	}
-	sortEvents(commentEvents)
+	sort.SliceStable(threadComments, func(i, j int) bool {
+		return threadComments[i].When < threadComments[j].When
+	})
 
-	reviewEvents := make([]readThreadEvent, 0, len(reviews))
+	threadReviews := make([]ThreadReview, 0, len(reviews))
 	for _, review := range reviews {
-		rendered, ok := newReviewEvent(review)
+		rendered, ok := newThreadReview(review)
 		if ok {
-			reviewEvents = append(reviewEvents, rendered)
+			threadReviews = append(threadReviews, rendered)
 		}
 	}
-	sortEvents(reviewEvents)
+	sort.SliceStable(threadReviews, func(i, j int) bool {
+		return threadReviews[i].When < threadReviews[j].When
+	})
 
-	return renderThreadDocument(payload.Number, "pr", payload.Title, payload.URL, payload.Body, []readThreadSection{
-		{Heading: "Comments", Events: commentEvents},
-		{Heading: "Reviews", Events: reviewEvents},
-	}), nil
+	return ReadThreadResult{
+		Number:         payload.Number,
+		Kind:           "pr",
+		Title:          payload.Title,
+		URL:            payload.URL,
+		Body:           SanitizeMarkdown(payload.Body),
+		Comments:       threadComments,
+		Reviews:        threadReviews,
+		ReviewComments: reviewComments,
+	}, nil
 }
 
-func renderIssueThread(ctx context.Context, runner execx.Runner, repo string, body []byte) (string, error) {
+func renderIssueThread(ctx context.Context, runner execx.Runner, repo string, body []byte) (ReadThreadResult, error) {
 	var payload readThreadIssuePayload
 	if err := json.Unmarshal(body, &payload); err != nil {
-		return "", err
+		return ReadThreadResult{}, err
 	}
 
 	comments, err := loadIssueComments(ctx, runner, repo, payload.Number)
 	if err != nil {
-		return "", err
+		return ReadThreadResult{}, err
 	}
 
-	events := make([]readThreadEvent, 0, len(comments))
+	events := make([]ThreadComment, 0, len(comments))
 	for _, comment := range comments {
-		rendered, ok := newCommentEvent(comment)
+		rendered, ok := newThreadComment(comment)
 		if ok {
 			events = append(events, rendered)
 		}
 	}
-	sortEvents(events)
+	sort.SliceStable(events, func(i, j int) bool {
+		return events[i].When < events[j].When
+	})
 
-	return renderThreadDocument(payload.Number, "issue", payload.Title, payload.URL, payload.Body, []readThreadSection{
-		{Heading: "Comments", Events: events},
-	}), nil
+	return ReadThreadResult{
+		Number:   payload.Number,
+		Kind:     "issue",
+		Title:    payload.Title,
+		URL:      payload.URL,
+		Body:     SanitizeMarkdown(payload.Body),
+		Comments: events,
+	}, nil
 }
 
-func newCommentEvent(comment readThreadIssueComment) (readThreadEvent, bool) {
+func newThreadComment(comment readThreadIssueComment) (ThreadComment, bool) {
 	if comment.User.Type != "User" {
-		return readThreadEvent{}, false
+		return ThreadComment{}, false
 	}
 
 	body := SanitizeMarkdown(comment.Body)
 	if body == "" {
-		return readThreadEvent{}, false
+		return ThreadComment{}, false
 	}
 
-	return readThreadEvent{
-		When:  comment.CreatedAt,
-		Label: "@" + comment.User.Login,
-		Body:  body,
+	return ThreadComment{
+		When:   comment.CreatedAt,
+		Author: comment.User.Login,
+		Body:   body,
 	}, true
 }
 
-func newReviewEvent(review readThreadReview) (readThreadEvent, bool) {
+func newThreadReview(review readThreadReview) (ThreadReview, bool) {
 	if review.User.Type != "User" {
-		return readThreadEvent{}, false
+		return ThreadReview{}, false
 	}
 
 	body := SanitizeMarkdown(review.Body)
 	if body == "" {
-		return readThreadEvent{}, false
+		return ThreadReview{}, false
 	}
 
-	return readThreadEvent{
-		When:  review.SubmittedAt,
-		Label: review.State + " @" + review.User.Login,
-		Body:  body,
+	return ThreadReview{
+		When:   review.SubmittedAt,
+		Author: review.User.Login,
+		State:  review.State,
+		Body:   body,
 	}, true
-}
-
-func sortEvents(events []readThreadEvent) {
-	sort.SliceStable(events, func(i, j int) bool {
-		return events[i].When < events[j].When
-	})
 }
 
 func loadIssueComments(ctx context.Context, runner execx.Runner, repo string, number int) ([]readThreadIssueComment, error) {
@@ -211,40 +216,117 @@ func loadPRReviews(ctx context.Context, runner execx.Runner, repo string, number
 	return reviews, nil
 }
 
-func renderThreadDocument(number int, kind string, title string, url string, body string, sections []readThreadSection) string {
+func loadPRInlineReviewComments(ctx context.Context, runner execx.Runner, repo string, number int) ([]ReviewComment, error) {
+	path := fmt.Sprintf("repos/%s/pulls/%d/comments?per_page=100", repo, number)
+	body, err := GHAPI(ctx, runner, "--paginate", "-H", "Accept: application/vnd.github+json", path)
+	if err != nil {
+		return nil, err
+	}
+
+	var payload []reviewCommentPayload
+	if err := json.Unmarshal(body, &payload); err != nil {
+		return nil, err
+	}
+
+	comments := make([]ReviewComment, 0, len(payload))
+	for _, comment := range payload {
+		if comment.User.Type != "User" {
+			continue
+		}
+		cleanBody := SanitizeMarkdown(comment.Body)
+		if cleanBody == "" {
+			continue
+		}
+		startLine, endLine := commentRange(comment)
+		comments = append(comments, ReviewComment{
+			Author:    comment.User.Login,
+			Body:      cleanBody,
+			When:      comment.CreatedAt,
+			Path:      comment.Path,
+			StartLine: startLine,
+			EndLine:   endLine,
+		})
+	}
+
+	sort.SliceStable(comments, func(i, j int) bool {
+		return comments[i].When < comments[j].When
+	})
+	return comments, nil
+}
+
+func RenderReadThreadMarkdown(result ReadThreadResult) string {
 	var out strings.Builder
 
-	fmt.Fprintf(&out, "#%d [%s] %s\n", number, kind, title)
-	out.WriteString(url)
+	fmt.Fprintf(&out, "#%d [%s] %s\n", result.Number, result.Kind, result.Title)
+	out.WriteString(result.URL)
 	out.WriteString("\n\n## Body\n")
 
-	cleanBody := SanitizeMarkdown(body)
-	if cleanBody == "" {
+	if result.Body == "" {
 		out.WriteString("(empty)\n")
 	} else {
-		out.WriteString(cleanBody)
+		out.WriteString(result.Body)
 		out.WriteString("\n")
 	}
 
-	for _, section := range sections {
-		fmt.Fprintf(&out, "\n## %s\n", section.Heading)
-		if len(section.Events) == 0 {
-			out.WriteString("(none)\n")
-			continue
-		}
-
-		for i, event := range section.Events {
-			if i > 0 {
-				out.WriteString("\n")
-			}
-			out.WriteString("- ")
-			out.WriteString(event.Label)
-			out.WriteString("\n")
-			writeIndentedBlock(&out, event.Body)
-		}
+	renderCommentSection(&out, "Comments", result.Comments)
+	if result.Kind == "pr" {
+		renderReviewSection(&out, result.Reviews)
+		renderReviewCommentSection(&out, result.ReviewComments)
 	}
-
 	return out.String()
+}
+
+func renderCommentSection(out *strings.Builder, heading string, comments []ThreadComment) {
+	fmt.Fprintf(out, "\n## %s\n", heading)
+	if len(comments) == 0 {
+		out.WriteString("(none)\n")
+		return
+	}
+	for i, comment := range comments {
+		if i > 0 {
+			out.WriteString("\n")
+		}
+		out.WriteString("- @")
+		out.WriteString(comment.Author)
+		out.WriteString("\n")
+		writeIndentedBlock(out, comment.Body)
+	}
+}
+
+func renderReviewSection(out *strings.Builder, reviews []ThreadReview) {
+	out.WriteString("\n## Reviews\n")
+	if len(reviews) == 0 {
+		out.WriteString("(none)\n")
+		return
+	}
+	for i, review := range reviews {
+		if i > 0 {
+			out.WriteString("\n")
+		}
+		out.WriteString("- ")
+		out.WriteString(review.State)
+		out.WriteString(" @")
+		out.WriteString(review.Author)
+		out.WriteString("\n")
+		writeIndentedBlock(out, review.Body)
+	}
+}
+
+func renderReviewCommentSection(out *strings.Builder, comments []ReviewComment) {
+	out.WriteString("\n## Review Comments\n")
+	if len(comments) == 0 {
+		out.WriteString("(none)\n")
+		return
+	}
+	for i, comment := range comments {
+		if i > 0 {
+			out.WriteString("\n")
+		}
+		out.WriteString("- ")
+		out.WriteString(renderInlineReviewLabel(comment))
+		out.WriteString("\n")
+		writeIndentedBlock(out, comment.Body)
+	}
 }
 
 func writeIndentedBlock(out *strings.Builder, body string) {
@@ -257,6 +339,21 @@ func writeIndentedBlock(out *strings.Builder, body string) {
 		out.WriteString(line)
 	}
 	out.WriteString("\n")
+}
+
+func renderInlineReviewLabel(comment ReviewComment) string {
+	label := "@" + comment.Author
+	if comment.Path != "" {
+		label = comment.Path + " " + label
+	}
+	switch {
+	case comment.StartLine > 0 && comment.EndLine > 0 && comment.StartLine != comment.EndLine:
+		return fmt.Sprintf("%s (L%d-L%d)", label, comment.StartLine, comment.EndLine)
+	case comment.StartLine > 0:
+		return fmt.Sprintf("%s (L%d)", label, comment.StartLine)
+	default:
+		return label
+	}
 }
 
 func isPRLookupMiss(err error) bool {

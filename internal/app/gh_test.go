@@ -75,18 +75,18 @@ func TestGHWrappersBuildExactCommands(t *testing.T) {
 
 	runner := execx.NewMockRunner(
 		execx.Expectation{
-			Name: "gh",
-			Args: []string{"pr", "view", "123", "--repo", "acme/chester", "--json", "number,title,body"},
+			Name:   "gh",
+			Args:   []string{"pr", "view", "123", "--repo", "acme/chester", "--json", "number,title,body"},
 			Result: execx.Result{Stdout: []byte(`{"number":123,"title":"Example","body":"Body"}`)},
 		},
 		execx.Expectation{
-			Name: "gh",
-			Args: []string{"issue", "view", "456", "--repo", "acme/chester", "--json", "number,title,body"},
+			Name:   "gh",
+			Args:   []string{"issue", "view", "456", "--repo", "acme/chester", "--json", "number,title,body"},
 			Result: execx.Result{Stdout: []byte(`{"number":456,"title":"Example","body":"Body"}`)},
 		},
 		execx.Expectation{
-			Name: "gh",
-			Args: []string{"api", "repos/acme/chester/commits/deadbeef/pulls"},
+			Name:   "gh",
+			Args:   []string{"api", "repos/acme/chester/commits/deadbeef/pulls"},
 			Result: execx.Result{Stdout: testutil.ReadFixture(t, "gh", "commit_pulls_sha_with_pr.json")},
 		},
 	)

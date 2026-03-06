@@ -6,17 +6,16 @@ import (
 	"github.com/KalleBylin/chester/internal/execx"
 )
 
-func WhyRange(ctx context.Context, runner execx.Runner, repo string, spec string) (WhyRangeResult, error) {
+func TextHistory(ctx context.Context, runner execx.Runner, repo string, literal string, path string) (TextHistoryResult, error) {
 	if err := RequireGitWorktree(ctx, runner); err != nil {
-		return WhyRangeResult{}, err
+		return TextHistoryResult{}, err
 	}
 
-	rows, err := GitRangeRows(ctx, runner, spec)
+	rows, err := GitTextHistoryRows(ctx, runner, literal, path)
 	if err != nil {
-		return WhyRangeResult{}, err
+		return TextHistoryResult{}, err
 	}
 
-	seenPRs := make(map[int]bool)
 	prCache := make(map[int]PRDetails)
 	entries := make([]HistoryEntry, 0, len(rows))
 
@@ -24,14 +23,14 @@ func WhyRange(ctx context.Context, runner execx.Runner, repo string, spec string
 		commit := NewCommitRef(row.SHA)
 		prRef, hasPR, err := InferCommitPRRef(ctx, runner, repo, row.SHA, row.Subject)
 		if err != nil {
-			return WhyRangeResult{}, err
+			return TextHistoryResult{}, err
 		}
 
 		if hasPR {
-			if seenPRs[prRef.Number] {
+			if len(entries) > 0 && entries[len(entries)-1].PullRequest != nil && entries[len(entries)-1].PullRequest.Number == prRef.Number {
+				entries[len(entries)-1].Commits = append(entries[len(entries)-1].Commits, commit)
 				continue
 			}
-			seenPRs[prRef.Number] = true
 
 			entry := HistoryEntry{
 				Commits: []CommitRef{commit},
@@ -60,17 +59,18 @@ func WhyRange(ctx context.Context, runner execx.Runner, repo string, spec string
 			if entry.Summary.Text == "" {
 				message, err := GitCommitMessage(ctx, runner, row.SHA)
 				if err != nil {
-					return WhyRangeResult{}, err
+					return TextHistoryResult{}, err
 				}
 				entry.Summary = CommitSummary(message)
 			}
+
 			entries = append(entries, entry)
 			continue
 		}
 
 		message, err := GitCommitMessage(ctx, runner, row.SHA)
 		if err != nil {
-			return WhyRangeResult{}, err
+			return TextHistoryResult{}, err
 		}
 		entries = append(entries, HistoryEntry{
 			Commits: []CommitRef{commit},
@@ -78,13 +78,18 @@ func WhyRange(ctx context.Context, runner execx.Runner, repo string, spec string
 		})
 	}
 
-	return WhyRangeResult{
-		Spec:    spec,
+	return TextHistoryResult{
+		Literal: literal,
+		Path:    path,
 		Repo:    repo,
 		Entries: entries,
 	}, nil
 }
 
-func RenderWhyRangeMarkdown(result WhyRangeResult) string {
-	return renderHistoryMarkdown(result.Spec, "first-commit", result.Entries)
+func RenderTextHistoryMarkdown(result TextHistoryResult) string {
+	heading := `text "` + result.Literal + `"`
+	if result.Path != "" {
+		heading += " in " + result.Path
+	}
+	return renderHistoryMarkdown(heading, "commits", result.Entries)
 }

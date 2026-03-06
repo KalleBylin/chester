@@ -1,14 +1,14 @@
 package cmd
 
 import (
-	"fmt"
-
 	"github.com/KalleBylin/chester/internal/app"
 	"github.com/spf13/cobra"
 )
 
 func newReadThreadCmd(opts *Options) *cobra.Command {
-	return &cobra.Command{
+	var asJSON bool
+
+	command := &cobra.Command{
 		Use:          "read-thread <id>",
 		Short:        "Fetch an issue or PR thread and render structured human discussion",
 		Example:      "chester read-thread 123",
@@ -20,13 +20,15 @@ func newReadThreadCmd(opts *Options) *cobra.Command {
 				return err
 			}
 
-			output, err := app.ReadThread(cmd.Context(), opts.Runner, repo, args[0])
+			result, err := app.ReadThread(cmd.Context(), opts.Runner, repo, args[0])
 			if err != nil {
 				return err
 			}
 
-			_, err = fmt.Fprintln(cmd.OutOrStdout(), output)
-			return err
+			return writeCommandOutput(cmd, asJSON, app.RenderReadThreadMarkdown(result), result)
 		},
 	}
+
+	command.Flags().BoolVar(&asJSON, "json", false, "render structured JSON instead of Markdown")
+	return command
 }

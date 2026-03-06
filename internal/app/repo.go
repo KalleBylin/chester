@@ -40,6 +40,14 @@ func ResolveRepoSlug(ctx context.Context, runner execx.Runner, override string) 
 	return slug, nil
 }
 
+func MaybeResolveRepoSlug(ctx context.Context, runner execx.Runner, override string) string {
+	slug, err := ResolveRepoSlug(ctx, runner, override)
+	if err != nil {
+		return ""
+	}
+	return slug
+}
+
 func ParseGitHubRepoSlug(remoteURL string) (string, error) {
 	remoteURL = strings.TrimSpace(remoteURL)
 	switch {

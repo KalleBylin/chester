@@ -25,7 +25,12 @@ type commitPullRef struct {
 	MergedAt string `json:"merged_at"`
 }
 
-func ResolveCommitPRNumber(ctx context.Context, runner execx.Runner, repo string, sha string, fallbackSubject string) (int, bool, error) {
+type CommitPRRef struct {
+	Number int
+	Source string
+}
+
+func ResolveCommitPRNumberViaGH(ctx context.Context, runner execx.Runner, repo string, sha string) (int, bool, error) {
 	path := fmt.Sprintf("repos/%s/commits/%s/pulls", repo, sha)
 	body, err := GHAPI(ctx, runner, "-H", "Accept: application/vnd.github+json", path)
 	if err != nil {
@@ -41,8 +46,12 @@ func ResolveCommitPRNumber(ctx context.Context, runner execx.Runner, repo string
 			return ref.Number, true, nil
 		}
 	}
+	return 0, false, nil
+}
 
-	subject := fallbackSubject
+func ResolveCommitPRNumber(ctx context.Context, runner execx.Runner, repo string, sha string, fallbackSubject string) (int, bool, error) {
+	subject := strings.TrimSpace(fallbackSubject)
+	var err error
 	if subject == "" {
 		subject, err = GitCommitSubject(ctx, runner, sha)
 		if err != nil {
@@ -50,11 +59,47 @@ func ResolveCommitPRNumber(ctx context.Context, runner execx.Runner, repo string
 		}
 	}
 
-	number, ok := ExtractPRNumberFromSubject(subject)
-	if !ok {
+	if number, ok := ExtractPRNumberFromSubject(subject); ok {
+		return number, true, nil
+	}
+	if repo == "" {
 		return 0, false, nil
 	}
-	return number, true, nil
+	return ResolveCommitPRNumberViaGH(ctx, runner, repo, sha)
+}
+
+func InferCommitPRRef(ctx context.Context, runner execx.Runner, repo string, sha string, fallbackSubject string) (CommitPRRef, bool, error) {
+	subject := strings.TrimSpace(fallbackSubject)
+	var err error
+	if subject == "" {
+		subject, err = GitCommitSubject(ctx, runner, sha)
+		if err != nil {
+			return CommitPRRef{}, false, err
+		}
+	}
+
+	if number, ok := ExtractPRNumberFromSubject(subject); ok {
+		return CommitPRRef{
+			Number: number,
+			Source: "commit_subject",
+		}, true, nil
+	}
+
+	if repo == "" {
+		return CommitPRRef{}, false, nil
+	}
+
+	number, ok, err := ResolveCommitPRNumberViaGH(ctx, runner, repo, sha)
+	if err != nil {
+		return CommitPRRef{}, false, nil
+	}
+	if !ok {
+		return CommitPRRef{}, false, nil
+	}
+	return CommitPRRef{
+		Number: number,
+		Source: "github_api",
+	}, true, nil
 }
 
 func ExtractPRNumberFromSubject(subject string) (int, bool) {
@@ -92,27 +137,51 @@ func LoadPRDetails(ctx context.Context, runner execx.Runner, repo string, number
 	return details, nil
 }
 
-func PRWhy(details PRDetails) string {
-	if why := FirstParagraph(details.Body); why != "" {
-		return why
+func TryLoadPRDetails(ctx context.Context, runner execx.Runner, repo string, number int) (PRDetails, bool) {
+	if repo == "" {
+		return PRDetails{}, false
 	}
-	return details.Title
+
+	details, err := LoadPRDetails(ctx, runner, repo, number)
+	if err != nil {
+		return PRDetails{}, false
+	}
+	return details, true
 }
 
-func DirectCommitWhy(raw string) string {
+func PRSummary(details PRDetails) Summary {
+	if summary := FirstParagraph(details.Body); summary != "" {
+		return Summary{
+			Text:   summary,
+			Source: "pr_body",
+		}
+	}
+	return Summary{
+		Text:   details.Title,
+		Source: "pr_title",
+	}
+}
+
+func CommitSummary(raw string) Summary {
 	raw = strings.TrimSpace(raw)
 	if raw == "" {
-		return ""
+		return Summary{}
 	}
 
 	parts := strings.SplitN(raw, "\n\n", 2)
 	subject := strings.TrimSpace(parts[0])
 	if len(parts) == 2 {
 		if paragraph := FirstParagraph(parts[1]); paragraph != "" {
-			return paragraph
+			return Summary{
+				Text:   paragraph,
+				Source: "commit_body",
+			}
 		}
 	}
-	return subject
+	return Summary{
+		Text:   subject,
+		Source: "commit_subject",
+	}
 }
 
 func shortSHA(sha string) string {
@@ -131,4 +200,11 @@ func readLeadingDigits(value string) string {
 		out.WriteByte(value[i])
 	}
 	return out.String()
+}
+
+func NewCommitRef(sha string) CommitRef {
+	return CommitRef{
+		SHA:   sha,
+		Short: shortSHA(sha),
+	}
 }

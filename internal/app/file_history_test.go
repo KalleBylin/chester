@@ -14,8 +14,8 @@ func TestFileHistoryRendersCollapsedTimeline(t *testing.T) {
 
 	runner := execx.NewMockRunner(
 		execx.Expectation{
-			Name: "git",
-			Args: []string{"rev-parse", "--is-inside-work-tree"},
+			Name:   "git",
+			Args:   []string{"rev-parse", "--is-inside-work-tree"},
 			Result: execx.Result{Stdout: []byte("true\n")},
 		},
 		execx.Expectation{
@@ -30,23 +30,23 @@ func TestFileHistoryRendersCollapsedTimeline(t *testing.T) {
 			},
 		},
 		execx.Expectation{
-			Name: "gh",
-			Args: []string{"api", "-H", "Accept: application/vnd.github+json", "repos/acme/chester/commits/1111111111111111111111111111111111111111/pulls"},
+			Name:   "gh",
+			Args:   []string{"api", "-H", "Accept: application/vnd.github+json", "repos/acme/chester/commits/1111111111111111111111111111111111111111/pulls"},
 			Result: execx.Result{Stdout: []byte(`[{"number":98,"merged_at":"2026-02-15T18:00:00Z"}]`)},
 		},
 		execx.Expectation{
-			Name: "gh",
-			Args: []string{"pr", "view", "98", "--repo", "acme/chester", "--json", "number,title,body,url,mergedAt"},
+			Name:   "gh",
+			Args:   []string{"pr", "view", "98", "--repo", "acme/chester", "--json", "number,title,body,url,mergedAt"},
 			Result: execx.Result{Stdout: testutil.ReadFixture(t, "gh", "pr_view_98.json")},
 		},
 		execx.Expectation{
-			Name: "gh",
-			Args: []string{"api", "-H", "Accept: application/vnd.github+json", "repos/acme/chester/commits/2222222222222222222222222222222222222222/pulls"},
+			Name:   "gh",
+			Args:   []string{"api", "-H", "Accept: application/vnd.github+json", "repos/acme/chester/commits/2222222222222222222222222222222222222222/pulls"},
 			Result: execx.Result{Stdout: []byte(`[{"number":98,"merged_at":"2026-02-15T18:00:00Z"}]`)},
 		},
 		execx.Expectation{
-			Name: "gh",
-			Args: []string{"api", "-H", "Accept: application/vnd.github+json", "repos/acme/chester/commits/3333333333333333333333333333333333333333/pulls"},
+			Name:   "gh",
+			Args:   []string{"api", "-H", "Accept: application/vnd.github+json", "repos/acme/chester/commits/3333333333333333333333333333333333333333/pulls"},
 			Result: execx.Result{Stdout: []byte(`[]`)},
 		},
 		execx.Expectation{
@@ -74,8 +74,8 @@ func TestFileHistoryKeepsNonAdjacentEntriesSeparate(t *testing.T) {
 
 	runner := execx.NewMockRunner(
 		execx.Expectation{
-			Name: "git",
-			Args: []string{"rev-parse", "--is-inside-work-tree"},
+			Name:   "git",
+			Args:   []string{"rev-parse", "--is-inside-work-tree"},
 			Result: execx.Result{Stdout: []byte("true\n")},
 		},
 		execx.Expectation{
@@ -90,29 +90,19 @@ func TestFileHistoryKeepsNonAdjacentEntriesSeparate(t *testing.T) {
 			},
 		},
 		execx.Expectation{
-			Name: "gh",
-			Args: []string{"api", "-H", "Accept: application/vnd.github+json", "repos/acme/chester/commits/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa/pulls"},
-			Result: execx.Result{Stdout: []byte(`[]`)},
-		},
-		execx.Expectation{
-			Name: "gh",
-			Args: []string{"pr", "view", "98", "--repo", "acme/chester", "--json", "number,title,body,url,mergedAt"},
+			Name:   "gh",
+			Args:   []string{"pr", "view", "98", "--repo", "acme/chester", "--json", "number,title,body,url,mergedAt"},
 			Result: execx.Result{Stdout: testutil.ReadFixture(t, "gh", "pr_view_98.json")},
 		},
 		execx.Expectation{
-			Name: "gh",
-			Args: []string{"api", "-H", "Accept: application/vnd.github+json", "repos/acme/chester/commits/bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb/pulls"},
+			Name:   "gh",
+			Args:   []string{"api", "-H", "Accept: application/vnd.github+json", "repos/acme/chester/commits/bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb/pulls"},
 			Result: execx.Result{Stdout: []byte(`[]`)},
 		},
 		execx.Expectation{
-			Name: "git",
-			Args: []string{"show", "-s", "--format=%s%n%n%b", "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"},
+			Name:   "git",
+			Args:   []string{"show", "-s", "--format=%s%n%n%b", "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"},
 			Result: execx.Result{Stdout: []byte("Direct commit\n")},
-		},
-		execx.Expectation{
-			Name: "gh",
-			Args: []string{"api", "-H", "Accept: application/vnd.github+json", "repos/acme/chester/commits/cccccccccccccccccccccccccccccccccccccccc/pulls"},
-			Result: execx.Result{Stdout: []byte(`[]`)},
 		},
 	)
 

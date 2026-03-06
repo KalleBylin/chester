@@ -14,3 +14,7 @@ Force immediate revocation after password reset.
 ## Reviews
 - APPROVED @bob
   Keep this branch-specific invalidation until legacy clients are removed.
+
+## Review Comments
+- internal/auth/session.go @bob (L88)
+  Keep the branch-specific invalidation until legacy clients are removed.

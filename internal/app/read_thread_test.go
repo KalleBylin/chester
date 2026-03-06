@@ -43,6 +43,16 @@ func TestReadThreadRendersPRConversation(t *testing.T) {
 				Stdout: testutil.ReadFixture(t, "gh", "pull_reviews_123.json"),
 			},
 		},
+		execx.Expectation{
+			Name: "gh",
+			Args: []string{
+				"api", "--paginate", "-H", "Accept: application/vnd.github+json",
+				"repos/acme/chester/pulls/123/comments?per_page=100",
+			},
+			Result: execx.Result{
+				Stdout: testutil.ReadFixture(t, "gh", "pull_comments_123.json"),
+			},
+		},
 	)
 
 	got, err := ReadThread(context.Background(), runner, "acme/chester", "123")
@@ -51,8 +61,9 @@ func TestReadThreadRendersPRConversation(t *testing.T) {
 	}
 
 	want := strings.TrimSpace(string(testutil.ReadFixture(t, "golden", "read_thread_pr.md")))
-	if strings.TrimSpace(got) != want {
-		t.Fatalf("ReadThread() mismatch\nwant:\n%s\n\ngot:\n%s", want, got)
+	rendered := strings.TrimSpace(RenderReadThreadMarkdown(got))
+	if rendered != want {
+		t.Fatalf("ReadThread() mismatch\nwant:\n%s\n\ngot:\n%s", want, rendered)
 	}
 }
 
@@ -101,8 +112,9 @@ func TestReadThreadFallsBackToIssue(t *testing.T) {
 	}
 
 	want := strings.TrimSpace(string(testutil.ReadFixture(t, "golden", "read_thread_issue.md")))
-	if strings.TrimSpace(got) != want {
-		t.Fatalf("ReadThread() mismatch\nwant:\n%s\n\ngot:\n%s", want, got)
+	rendered := strings.TrimSpace(RenderReadThreadMarkdown(got))
+	if rendered != want {
+		t.Fatalf("ReadThread() mismatch\nwant:\n%s\n\ngot:\n%s", want, rendered)
 	}
 }
 
@@ -140,6 +152,16 @@ func TestReadThreadUsesEmptyBodyPlaceholder(t *testing.T) {
 				Stdout: []byte(`[]`),
 			},
 		},
+		execx.Expectation{
+			Name: "gh",
+			Args: []string{
+				"api", "--paginate", "-H", "Accept: application/vnd.github+json",
+				"repos/acme/chester/pulls/999/comments?per_page=100",
+			},
+			Result: execx.Result{
+				Stdout: []byte(`[]`),
+			},
+		},
 	)
 
 	got, err := ReadThread(context.Background(), runner, "acme/chester", "999")
@@ -147,13 +169,17 @@ func TestReadThreadUsesEmptyBodyPlaceholder(t *testing.T) {
 		t.Fatalf("ReadThread() error = %v", err)
 	}
 
-	if !strings.Contains(got, "## Body\n(empty)") {
-		t.Fatalf("ReadThread() = %q, want empty body placeholder", got)
+	rendered := RenderReadThreadMarkdown(got)
+	if !strings.Contains(rendered, "## Body\n(empty)") {
+		t.Fatalf("ReadThread() = %q, want empty body placeholder", rendered)
 	}
-	if !strings.Contains(got, "## Comments\n(none)") {
-		t.Fatalf("ReadThread() = %q, want empty comments placeholder", got)
+	if !strings.Contains(rendered, "## Comments\n(none)") {
+		t.Fatalf("ReadThread() = %q, want empty comments placeholder", rendered)
 	}
-	if !strings.Contains(got, "## Reviews\n(none)") {
-		t.Fatalf("ReadThread() = %q, want empty reviews placeholder", got)
+	if !strings.Contains(rendered, "## Reviews\n(none)") {
+		t.Fatalf("ReadThread() = %q, want empty reviews placeholder", rendered)
+	}
+	if !strings.Contains(rendered, "## Review Comments\n(none)") {
+		t.Fatalf("ReadThread() = %q, want empty review comments placeholder", rendered)
 	}
 }

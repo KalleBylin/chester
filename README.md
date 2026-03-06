@@ -1,6 +1,6 @@
 # chester
 
-`chester` is named for Chesterton's Fence: before an agent deletes, rewrites, or "simplifies" a piece of code, it should first understand why that code exists. `chester` is a lightweight, stateless CLI for deterministic repository archaeology. It shells out to local `git` and the authenticated `gh` CLI, then emits compressed Markdown for LLM context windows so agents can pay down verification debt before they make changes.
+`chester` is named for Chesterton's Fence: before an agent deletes, rewrites, or "simplifies" a piece of code, it should first understand why that code exists. `chester` is a lightweight, stateless CLI for deterministic repository archaeology. It shells out to local `git` first, then layers in GitHub data through the authenticated `gh` CLI when it is available. The result is compressed Markdown for humans and deterministic JSON for agents.
 
 ## Install
 
@@ -41,7 +41,7 @@ chester completion fish | source
 
 ## Agent Onboarding
 
-Agents are the primary users. Run `chester onboard` and paste the emitted snippet into `AGENTS.md` (or `.github/copilot-instructions.md`) so coding agents know the anti-magic rule and the four core primitives.
+Agents are the primary users. Run `chester onboard` and paste the emitted snippet into `AGENTS.md` (or `.github/copilot-instructions.md`) so coding agents know the anti-magic rule and the five core primitives.
 
 ## Principles
 
@@ -62,46 +62,35 @@ Generates shell completion scripts using Cobra's built-in completion support.
 
 ### `chester read-thread <id>`
 
-Fetches a remote issue or pull request thread, strips GitHub UI noise, and prints:
+Fetches a remote issue or pull request thread and prints the body, comments, reviews, and inline review comments. If the ID is not a pull request, `chester` falls back to `gh issue view`.
 
-- the original body
-- a `Comments` section with chronological human comments
-- a `Reviews` section for PR review summaries
+### `chester why-file <path>`
 
-If the ID is not a pull request, `chester` falls back to `gh issue view`.
+Walks local history for one exact file, collapsing adjacent commits from the same PR and enriching with GitHub PR context when available.
 
-### `chester file-history <path>`
+### `chester why-lines <file>:<start>:<end>`
 
-Walks local history for one exact file with:
+Blames an exact line range, resolves the introducing commits to PRs, and keeps file-scoped review comments separate from the span summaries.
 
-- `git log --follow --reverse`
-- GitHub commit-to-PR association lookups
-- deterministic fallback to direct commit messages when no PR exists
+### `chester why-range <from_ref>..<to_ref>`
 
-Adjacent commits that map to the same PR are collapsed into one timeline entry.
+Walks a git revision range and renders a chronological summary with explicit summary provenance.
 
-### `chester unearth-lines <file>:<start>:<end>`
+### `chester text-history <literal>`
 
-Blames an exact line range with `git blame --line-porcelain`, resolves the introducing commits to PRs, and prints:
+Walks history for one exact string literal, optionally scoped to one path with `--path`.
 
-- line spans
-- the blamed commit SHA
-- the PR or direct-commit source
-- top review comments for the exact file path only
+## Output Modes
 
-If a blamed commit has no PR, `chester` falls back to the direct commit message.
-
-### `chester unearth-range <from_ref>..<to_ref>`
-
-Walks a git revision range with `git log --reverse`, resolves each commit to a PR, deduplicates PRs by first appearance, and renders a dense high-level list of architectural changes.
+All archaeology commands support `--json`. Markdown is the default for direct reading. JSON is for wrappers and agents that need to chain `chester` without scraping prose.
 
 ## Requirements
 
 - Go 1.26+ for `go install` or source builds
 - `git` must be installed
-- `gh` must be installed and authenticated for GitHub
-- `gh auth login` must have been completed before using remote-backed commands
-- either:
+- `gh` is optional for local archaeology commands and required for `read-thread`
+- `gh auth login` must be completed before using GitHub-backed enrichment
+- for GitHub-backed enrichment, either:
   - the current repository has a GitHub `origin` remote
   - or `--repo owner/name` is provided
 

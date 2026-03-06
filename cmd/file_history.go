@@ -1,32 +1,30 @@
 package cmd
 
 import (
-	"fmt"
-
 	"github.com/KalleBylin/chester/internal/app"
 	"github.com/spf13/cobra"
 )
 
-func newFileHistoryCmd(opts *Options) *cobra.Command {
-	return &cobra.Command{
-		Use:          "file-history <path>",
-		Short:        "Show chronological PR-backed history for one file",
-		Example:      "chester file-history internal/auth/session.go",
+func newWhyFileCmd(opts *Options) *cobra.Command {
+	var asJSON bool
+
+	command := &cobra.Command{
+		Use:          "why-file <path>",
+		Aliases:      []string{"file-history"},
+		Short:        "Show chronological history for one file, enriched with PR context when available",
+		Example:      "chester why-file internal/auth/session.go",
 		Args:         cobra.ExactArgs(1),
 		SilenceUsage: true,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			repo, err := app.ResolveRepoSlug(cmd.Context(), opts.Runner, opts.Repo)
+			result, err := app.WhyFile(cmd.Context(), opts.Runner, app.MaybeResolveRepoSlug(cmd.Context(), opts.Runner, opts.Repo), args[0])
 			if err != nil {
 				return err
 			}
 
-			output, err := app.FileHistory(cmd.Context(), opts.Runner, repo, args[0])
-			if err != nil {
-				return err
-			}
-
-			_, err = fmt.Fprintln(cmd.OutOrStdout(), output)
-			return err
+			return writeCommandOutput(cmd, asJSON, app.RenderWhyFileMarkdown(result), result)
 		},
 	}
+
+	command.Flags().BoolVar(&asJSON, "json", false, "render structured JSON instead of Markdown")
+	return command
 }

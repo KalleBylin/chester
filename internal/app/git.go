@@ -59,6 +59,18 @@ func GitRangeRows(ctx context.Context, runner execx.Runner, spec string) ([]Comm
 	return parseCommitRows(string(out)), nil
 }
 
+func GitTextHistoryRows(ctx context.Context, runner execx.Runner, literal string, path string) ([]CommitRow, error) {
+	args := []string{"log", "--reverse", "--format=%H%x09%s", "-S", literal}
+	if path != "" {
+		args = append(args, "--", path)
+	}
+	out, err := RunGit(ctx, runner, args...)
+	if err != nil {
+		return nil, err
+	}
+	return parseCommitRows(string(out)), nil
+}
+
 func GitCommitSubject(ctx context.Context, runner execx.Runner, sha string) (string, error) {
 	out, err := RunGit(ctx, runner, "show", "-s", "--format=%s", sha)
 	if err != nil {

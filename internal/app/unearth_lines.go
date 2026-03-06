@@ -17,97 +17,127 @@ type BlameSpan struct {
 	End   int
 }
 
-type ReviewNote struct {
-	Author string
-	Body   string
-	When   string
-}
-
 type reviewCommentPayload struct {
-	Path      string `json:"path"`
-	Body      string `json:"body"`
-	CreatedAt string `json:"created_at"`
-	User      struct {
+	Path              string `json:"path"`
+	Body              string `json:"body"`
+	CreatedAt         string `json:"created_at"`
+	Line              int    `json:"line"`
+	OriginalLine      int    `json:"original_line"`
+	StartLine         int    `json:"start_line"`
+	OriginalStartLine int    `json:"original_start_line"`
+	User              struct {
 		Login string `json:"login"`
 		Type  string `json:"type"`
 	} `json:"user"`
 }
 
-func UnearthLines(ctx context.Context, runner execx.Runner, repo string, file string, start int, end int) (string, error) {
+func WhyLines(ctx context.Context, runner execx.Runner, repo string, file string, start int, end int) (WhyLinesResult, error) {
 	if err := RequireGitWorktree(ctx, runner); err != nil {
-		return "", err
+		return WhyLinesResult{}, err
 	}
 
 	spans, err := GitBlameSpans(ctx, runner, file, start, end)
 	if err != nil {
-		return "", err
+		return WhyLinesResult{}, err
 	}
 
 	prCache := make(map[int]PRDetails)
-	noteCache := make(map[int][]ReviewNote)
-	lines := make([]string, 0, len(spans))
+	noteCache := make(map[int][]ReviewComment)
+	prRefs := make(map[int]PullRequestRef)
+	noteOrder := make([]int, 0)
+	results := make([]WhyLineSpanResult, 0, len(spans))
 
 	for _, span := range spans {
-		number, hasPR, err := ResolveCommitPRNumber(ctx, runner, repo, span.SHA, "")
+		commit := NewCommitRef(span.SHA)
+		prRef, hasPR, err := InferCommitPRRef(ctx, runner, repo, span.SHA, "")
 		if err != nil {
-			return "", err
+			return WhyLinesResult{}, err
 		}
 
-		header := "- " + renderBlameSpan(span) + "\n" + "  commit: " + shortSHA(span.SHA) + "\n"
+		entry := WhyLineSpanResult{
+			Start:  span.Start,
+			End:    span.End,
+			Commit: commit,
+			Source: WhyLinesSource{Kind: "direct"},
+		}
+
 		if hasPR {
-			details, ok := prCache[number]
-			if !ok {
-				details, err = LoadPRDetails(ctx, runner, repo, number)
-				if err != nil {
-					return "", err
-				}
-				prCache[number] = details
+			pullRequest := PullRequestRef{
+				Number: prRef.Number,
+				Source: prRef.Source,
 			}
-
-			notes, ok := noteCache[number]
-			if !ok {
-				notes, err = LoadPRReviewNotes(ctx, runner, repo, number, file)
-				if err != nil {
-					return "", err
-				}
-				noteCache[number] = notes
-			}
-
-			var block strings.Builder
-			block.WriteString(header)
-			fmt.Fprintf(&block, "  source: PR #%d %s\n", details.Number, details.Title)
-			block.WriteString("  why: ")
-			block.WriteString(PRWhy(details))
-			block.WriteString("\n")
-			if len(notes) > 0 {
-				block.WriteString("  notes: ")
-				for i, note := range notes {
-					if i > 0 {
-						block.WriteString(" | ")
+			if repo != "" {
+				details, ok := prCache[prRef.Number]
+				if !ok {
+					var loaded bool
+					details, loaded = TryLoadPRDetails(ctx, runner, repo, prRef.Number)
+					if loaded {
+						prCache[prRef.Number] = details
+						ok = true
 					}
-					block.WriteString("@")
-					block.WriteString(note.Author)
-					block.WriteString(": ")
-					block.WriteString(note.Body)
 				}
-				block.WriteString("\n")
+				if ok {
+					pullRequest.Title = details.Title
+					pullRequest.URL = details.URL
+					pullRequest.Resolved = true
+					entry.Summary = PRSummary(details)
+				}
+
+				if _, seen := noteCache[prRef.Number]; !seen {
+					notes, ok := TryLoadPRReviewComments(ctx, runner, repo, prRef.Number, file)
+					if ok {
+						noteCache[prRef.Number] = notes
+						if len(notes) > 0 {
+							noteOrder = append(noteOrder, prRef.Number)
+						}
+					}
+				}
 			}
-			lines = append(lines, strings.TrimRight(block.String(), "\n"))
+			if entry.Summary.Text == "" {
+				message, err := GitCommitMessage(ctx, runner, span.SHA)
+				if err != nil {
+					return WhyLinesResult{}, err
+				}
+				entry.Summary = CommitSummary(message)
+			}
+
+			prRefs[prRef.Number] = pullRequest
+			entry.Source = WhyLinesSource{
+				Kind:        "pull_request",
+				PullRequest: &pullRequest,
+			}
+			results = append(results, entry)
 			continue
 		}
 
 		message, err := GitCommitMessage(ctx, runner, span.SHA)
 		if err != nil {
-			return "", err
+			return WhyLinesResult{}, err
 		}
-
-		lines = append(lines, strings.Join([]string{
-			header + "  source: direct",
-			"  why: " + DirectCommitWhy(message),
-		}, "\n"))
+		entry.Summary = CommitSummary(message)
+		results = append(results, entry)
 	}
 
-	return renderUnearthLines(file, start, end, lines), nil
+	fileNotes := make([]WhyLinesNoteGroup, 0, len(noteOrder))
+	for _, number := range noteOrder {
+		comments := noteCache[number]
+		if len(comments) == 0 {
+			continue
+		}
+		fileNotes = append(fileNotes, WhyLinesNoteGroup{
+			PullRequest: prRefs[number],
+			Comments:    comments,
+		})
+	}
+
+	return WhyLinesResult{
+		File:      file,
+		Start:     start,
+		End:       end,
+		Repo:      repo,
+		Spans:     results,
+		FileNotes: fileNotes,
+	}, nil
 }
 
 func GitBlameSpans(ctx context.Context, runner execx.Runner, file string, start int, end int) ([]BlameSpan, error) {
@@ -119,7 +149,7 @@ func GitBlameSpans(ctx context.Context, runner execx.Runner, file string, start 
 	return parseBlameSpans(string(out))
 }
 
-func LoadPRReviewNotes(ctx context.Context, runner execx.Runner, repo string, number int, file string) ([]ReviewNote, error) {
+func LoadPRReviewComments(ctx context.Context, runner execx.Runner, repo string, number int, file string) ([]ReviewComment, error) {
 	path := fmt.Sprintf("repos/%s/pulls/%d/comments?per_page=100", repo, number)
 	body, err := GHAPI(ctx, runner, "--paginate", "-H", "Accept: application/vnd.github+json", path)
 	if err != nil {
@@ -131,7 +161,7 @@ func LoadPRReviewNotes(ctx context.Context, runner execx.Runner, repo string, nu
 		return nil, err
 	}
 
-	notes := make([]ReviewNote, 0, len(payload))
+	notes := make([]ReviewComment, 0, len(payload))
 	for _, comment := range payload {
 		if comment.Path != file {
 			continue
@@ -143,10 +173,14 @@ func LoadPRReviewNotes(ctx context.Context, runner execx.Runner, repo string, nu
 		if cleanBody == "" {
 			continue
 		}
-		notes = append(notes, ReviewNote{
-			Author: comment.User.Login,
-			Body:   cleanBody,
-			When:   comment.CreatedAt,
+		startLine, endLine := commentRange(comment)
+		notes = append(notes, ReviewComment{
+			Author:    comment.User.Login,
+			Body:      cleanBody,
+			When:      comment.CreatedAt,
+			Path:      comment.Path,
+			StartLine: startLine,
+			EndLine:   endLine,
 		})
 	}
 
@@ -157,6 +191,17 @@ func LoadPRReviewNotes(ctx context.Context, runner execx.Runner, repo string, nu
 		notes = notes[:3]
 	}
 	return notes, nil
+}
+
+func TryLoadPRReviewComments(ctx context.Context, runner execx.Runner, repo string, number int, file string) ([]ReviewComment, bool) {
+	if repo == "" {
+		return nil, false
+	}
+	comments, err := LoadPRReviewComments(ctx, runner, repo, number, file)
+	if err != nil {
+		return nil, false
+	}
+	return comments, true
 }
 
 func parseBlameSpans(output string) ([]BlameSpan, error) {
@@ -222,31 +267,66 @@ func parseBlameSpans(output string) ([]BlameSpan, error) {
 	return spans, nil
 }
 
-func renderUnearthLines(file string, start int, end int, entries []string) string {
+func RenderWhyLinesMarkdown(result WhyLinesResult) string {
 	var out strings.Builder
 
-	fmt.Fprintf(&out, "# %s:%d-%d\n", file, start, end)
-	if len(entries) == 0 {
+	fmt.Fprintf(&out, "# %s:%d-%d\n", result.File, result.Start, result.End)
+	if len(result.Spans) == 0 {
 		out.WriteString("\n(none)\n")
 		return out.String()
 	}
 
 	out.WriteString("\n")
-	for i, entry := range entries {
+	for i, entry := range result.Spans {
 		if i > 0 {
 			out.WriteString("\n")
 		}
-		out.WriteString(entry)
+		fmt.Fprintf(&out, "- %s\n", renderSpanLocation(entry.Start, entry.End))
+		out.WriteString("  commit: ")
+		out.WriteString(entry.Commit.Short)
+		out.WriteString("\n")
+		if entry.Source.Kind == "pull_request" && entry.Source.PullRequest != nil {
+			out.WriteString("  source: ")
+			out.WriteString(renderPullRequestHeading(*entry.Source.PullRequest))
+			out.WriteString("\n")
+		} else {
+			out.WriteString("  source: direct\n")
+		}
+		out.WriteString("  summary: ")
+		out.WriteString(entry.Summary.Text)
+		out.WriteString("\n")
+		out.WriteString("  summary-source: ")
+		out.WriteString(renderSummarySource(entry.Summary.Source))
 		out.WriteString("\n")
 	}
+
+	if len(result.FileNotes) > 0 {
+		out.WriteString("\n## File Notes\n")
+		for i, group := range result.FileNotes {
+			if i > 0 {
+				out.WriteString("\n")
+			}
+			out.WriteString("- ")
+			out.WriteString(renderPullRequestHeading(group.PullRequest))
+			out.WriteString("\n")
+			for _, comment := range group.Comments {
+				out.WriteString("  ")
+				out.WriteString(renderReviewCommentLabel(comment))
+				out.WriteString(": ")
+				out.WriteString(comment.Body)
+				out.WriteString("\n")
+			}
+		}
+	}
+
 	return strings.TrimRight(out.String(), "\n")
 }
 
-func renderBlameSpan(span BlameSpan) string {
-	if span.Start == span.End {
-		return fmt.Sprintf("L%d", span.Start)
+func renderSpanLocation(start int, end int) string {
+	if start == end {
+		return fmt.Sprintf("L%d", start)
 	}
-	return fmt.Sprintf("L%d-L%d", span.Start, span.End)
+	return fmt.Sprintf("L%d-L%d", start, end)
 }
 
 func isLikelyHash(value string) bool {
@@ -262,4 +342,34 @@ func isLikelyHash(value string) bool {
 		}
 	}
 	return true
+}
+
+func commentRange(comment reviewCommentPayload) (int, int) {
+	start := comment.StartLine
+	if start == 0 {
+		start = comment.OriginalStartLine
+	}
+	end := comment.Line
+	if end == 0 {
+		end = comment.OriginalLine
+	}
+	if start == 0 {
+		start = end
+	}
+	if end == 0 {
+		end = start
+	}
+	return start, end
+}
+
+func renderReviewCommentLabel(comment ReviewComment) string {
+	label := "@" + comment.Author
+	switch {
+	case comment.StartLine > 0 && comment.EndLine > 0 && comment.StartLine != comment.EndLine:
+		return fmt.Sprintf("%s (L%d-L%d)", label, comment.StartLine, comment.EndLine)
+	case comment.StartLine > 0:
+		return fmt.Sprintf("%s (L%d)", label, comment.StartLine)
+	default:
+		return label
+	}
 }
